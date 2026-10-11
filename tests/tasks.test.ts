@@ -40,7 +40,7 @@ describe('review execution state', () => {
       if(action==='review.execute'){writes++;if(mode==='uncertain')throw new CosmosError('RESULT_UNCERTAIN','timeout',{},5);return {id,bindingId:'bound',state:'succeeded',result:{state:'succeeded',verified:true,steps:[{index:0,state:'succeeded',verified:true,path:plan.steps[0]!.path,action:'task.create'}]}};}
       if(action==='execution.verify')return {id,bindingId:'bound',state:'succeeded',result:{state:'succeeded',verified:true,steps:[{index:0,state:'succeeded',verified:true,path:plan.steps[0]!.path,action:'task.create'}]}};
       throw Error('unexpected request');
-    };
+    }};
     return {reviews:new Reviews(adapter),store,writes:()=>writes};
   }
   it('does not write before confirmation or after cancellation, including resumed commit', async () => {
