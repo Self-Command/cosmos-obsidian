@@ -1,0 +1,13 @@
+node_modules/
+dist/
+artifacts/
+state/
+.local/
+*.local.json
+.env
+.env.*
+!.env.example
+*.log
+*.bundle
+*.private.json
+coverage/
