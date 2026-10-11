@@ -8,6 +8,13 @@
     client.__amytisOwnedRequest=async(route,params)=>{
       if(params.owner!=='Self-Command'||params.repo!=='amytis')throw Error('Test mapping rejects a different target.');
       const mapped={...params,repo:fixtureRepository};
+      if(this.app.__cosmosFixtureFailManifest&&route==='POST /repos/{owner}/{repo}/git/refs'){
+        const response=await owned(route,mapped);delete this.app.__cosmosFixtureFailManifest;
+        const adapter=this.app.vault.adapter,original=adapter.write.bind(adapter);
+        this.app.__cosmosFixtureRestoreManifest=()=>{adapter.write=original;delete this.app.__cosmosFixtureRestoreManifest;};
+        adapter.write=async(p,...rest)=>{if(p==='.obsidian/amytis/publication.json')throw Error('Synthetic publication manifest save failure');return original(p,...rest);};
+        return response;
+      }
       // One genuine remote upload fails before PR creation. The branch and persisted batch remain.
       if(this.app.__cosmosFixtureFailPR&&route==='POST /repos/{owner}/{repo}/pulls'){
         delete this.app.__cosmosFixtureFailPR;throw Error('Synthetic connection failure before PR creation');

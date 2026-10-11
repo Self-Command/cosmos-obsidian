@@ -80,6 +80,18 @@ try {
   }
   assert.equal(verified.steps?.[0]?.publication?.state,'live',JSON.stringify(verified));
   const refreshed=await commit(await preview({action:'refresh',batch:batch.id}));results.push({case:'real-deploy/pages/export-stamps/assets/index',passed:true,publication:refreshed.steps[0].publication});
+  // Saving the vault manifest fails after the branch exists. The external journal retains exact dispatch.
+  const saveFailName='保存失败公开副本-'+suffix,saveFail=await preview({action:'copy',path:registered[0].path,name:saveFailName,values:baseValues('zh','save-failure-'+suffix,'Synthetic save failure')});await commit(saveFail);
+  const saveFailQuery=await cli(['query','publication','--input','-'],{}),saveFailId=saveFailQuery.publication.candidates.find(c=>c.path===saveFail.summary.changes[0].path).id;
+  const uncertainUpload=await preview({action:'upload',ids:[saveFailId]});await native('app.__cosmosFixtureFailManifest=true');
+  const uncertain=await cli(['publish','commit','--review',uncertainUpload.reviewId,'--confirm']);assert.equal(uncertain.state,'uncertain',JSON.stringify(uncertain));assert.equal(uncertain.steps[0].publication.state,'uploaded-unrecorded');
+  await native('app.__cosmosFixtureRestoreManifest()');
+  const originalBranch=uncertain.steps[0].publication.batch,originalCommit=uncertain.steps[0].publication.commit;
+  const known=await cli(['execution','verify','--execution',uncertain.executionId]);assert.equal(known.state,'failed',JSON.stringify(known));assert.equal(known.steps[0].publication.batch,originalBranch);
+  const recovered=await commit(await preview({action:'recover',execution:uncertain.executionId}));assert.equal(recovered.steps[0].observed.batch.id,originalBranch);assert.equal(recovered.steps[0].observed.batch.commit,originalCommit);results.push({case:'real-manifest-save-failure/journal/recover-original-branch',passed:true,batch:originalBranch,commit:originalCommit});
+  let recoverLive;
+  for(let i=0;i<100;i++){recoverLive=await cli(['execution','verify','--execution',recovered.executionId]);if(recoverLive.steps?.[0]?.publication?.state==='live')break;await new Promise(r=>setTimeout(r,7000));}
+  assert.equal(recoverLive.steps?.[0]?.publication?.state,'live',JSON.stringify(recoverLive));await commit(await preview({action:'refresh',batch:originalBranch}));results.push({case:'real-journal-recovery/deploy/page-version',passed:true});
   const liveLanguage=await preview({action:'register',path:registered[0].path,values:{...registered[0].values,language:'en',slug:'distinct-'+suffix}});assert.equal(liveLanguage.ok,false);results.push({case:'uploaded-language-change-rejected',passed:true});
   // Rename locally after live verification: stable site_id and canonical URL remain unchanged.
   const renamed=await cli(['change','preview','--input','-'],{actions:[{action:'file.rename',path:registered[1].path,name:'本地改名-'+suffix}]});await commit(renamed);

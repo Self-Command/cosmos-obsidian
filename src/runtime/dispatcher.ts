@@ -31,6 +31,7 @@ export async function dispatch(app: any, requestPath: string) {
     const vaultPath = fs.realpathSync(app.vault.adapter.getBasePath());
     if (vaultPath !== fs.realpathSync(request.vaultPath) || request.bindingId !== fingerprint({ vaultPath, vaultName: app.vault.getName() })) throw new CosmosError('WRONG_VAULT', '运行中的库不匹配绑定。');
     const ctx = new Context(app, vaultPath, request.schemaPath, request.templateFolder);
+    ctx.stateRoot=root;ctx.bindingId=request.bindingId;
     let result;
     if (request.action === 'inspect') {
       const tasknotes = app.plugins.plugins.tasknotes, api = tasknotes?.api;
@@ -67,6 +68,7 @@ export async function dispatch(app: any, requestPath: string) {
       const lock = JSON.parse(fs.readFileSync(path.join(root, 'locks', request.bindingId + '.lock'), 'utf8'));
       if (review.state !== 'executing' || review.executionId !== request.id || lock.executionId !== request.id) throw new CosmosError('INVALID_STATE', '执行身份或锁不匹配。');
       const plan = review.plan as Plan;
+      ctx.executionId=request.id;
       await ctx.assertFresh(plan);
       if (app.__cosmosObsidianExecution) throw new CosmosError('VAULT_LOCKED', '应用内有未完成执行。');
       app.__cosmosObsidianExecution = request.id;
@@ -82,7 +84,7 @@ export async function dispatch(app: any, requestPath: string) {
             mutationProgress = { phase: 'dispatching', index, steps };
             const observed = await executeStep(ctx, step, request.id);
             const verification = await verifyStep(ctx, step, observed);
-            steps.push({ index, action: step.action, path: step.path, state: verification.verified ? 'succeeded' : 'failed', verified: verification.verified, observed, publication:verification.publication, error: verification.verified ? undefined : { code: 'VERIFICATION_FAILED', message: JSON.stringify(verification.differences) } });
+            steps.push({ index, action: step.action, path: step.path, state: verification.verified ? 'succeeded' : verification.uncertain?'uncertain':'failed', verified: verification.verified, observed, publication:verification.publication, error: verification.verified ? undefined : { code: 'VERIFICATION_FAILED', message: JSON.stringify(verification.differences) } });
             mutationProgress = { phase: 'readback', index, steps };
             save({ ...base, state: 'started', phase: 'readback', index, steps });
             if (!verification.verified) break;
@@ -105,6 +107,7 @@ export async function dispatch(app: any, requestPath: string) {
       const input = validate<any>(object({ executionId: text }, ['executionId']), request.input);
       if (!/^e-[0-9a-f-]{36}$/.test(input.executionId)) throw new CosmosError('INVALID_ID', '执行 ID 无效。');
       const execution = JSON.parse(fs.readFileSync(path.join(root, 'executions', input.executionId + '.json'), 'utf8'));
+      ctx.executionId=input.executionId;
       const review = JSON.parse(fs.readFileSync(path.join(root, 'reviews', execution.reviewId + '.json'), 'utf8')) as Review;
       assertStoredReview(review, request.bindingId, root);
       const plan = review.plan as Plan, priorPath = path.join(root, 'receipts', input.executionId + '.json');
@@ -118,7 +121,7 @@ export async function dispatch(app: any, requestPath: string) {
           for (let index = 0; index < count; index++) {
             const step = plan.steps[index]!, observed = previous[index]?.observed;
             const verification = await verifyStep(ctx, step, observed);
-            steps.push({ index, action: step.action, path: step.path, state: verification.verified ? 'succeeded' : 'uncertain', verified: verification.verified, observed,publication:verification.publication });
+            steps.push({ index, action: step.action, path: step.path, state: verification.verified ? 'succeeded' : verification.recoverable?'failed':'uncertain', verified: verification.verified, observed,publication:verification.publication });
           }
           const all = steps.length === plan.steps.length && steps.every(x => x.verified);
           const final = prior.state !== 'started' && !steps.some(x => x.state === 'uncertain');

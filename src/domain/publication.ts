@@ -8,5 +8,6 @@ export const publicationSchema = { oneOf: [
   object({action:{const:'copy'},path:text,name:text,folder:text,values:publicationValues},['action','path','name','values']),
   object({action:{const:'upload'},ids:strings,allowMigration:{type:'boolean'}},['action','ids']),
   object({action:{enum:['resume','refresh']},batch:text},['action','batch']),
+  object({action:{const:'recover'},execution:text},['action','execution']),
   object({action:{const:'withdraw'},id:text},['action','id'])
 ] };

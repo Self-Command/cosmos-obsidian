@@ -12,6 +12,9 @@ export class Context {
   proposed = new Map<string, { type: string }>();
   renamed = new Map<string,string>();
   environment: Plan['environment'] = {};
+  executionId?:string;
+  bindingId?:string;
+  stateRoot?:string;
   constructor(public app: any, public vaultPath: string, public schemaPath: string, public templateFolder = '宇宙/创世/模板') {}
   async read(relative: string) {
     const target = await safeTarget(this.vaultPath, relative);

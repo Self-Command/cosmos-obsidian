@@ -98,3 +98,7 @@ E02/E03/P01 独立验证闭合于 run 38158807169、候选 e0512cee993ccba8b4f11
 | P02 | 网站公开渲染源码 Self-Command/amytis，固定 d8099a39aa63f9dddace3fb2c32ce72daa6cae37 | 只复制代码、默认通用字体/图标与构建依赖到合成远端；排除生产 content/imports、site.config.ts、文档及测试内容。使用示例产生合成配置，实际 blob a047d5732bbe9c791626165d880d2b298474d56e，测试契约单独固定它；其余受保护 renderer blobs 保持原值。 | Self-Command/cosmos-obsidian-publication-fixture 的真实构建/Pages 部署；首轮发现二进制误按文本上传，已改为 base64 blobs，修复待重新验证 |
 
 测试页面映射为 `/cosmos-obsidian-publication-fixture/amytis/*`，原始导出仍保留规范 `/amytis/*`；它验证真实渲染、版本戳、成员与附件，不代表正式站导航或生产部署。正式 Amytis 内容和配置未被修改。网络结果未知保留 execution 和批次，不按超时自动重新上传。
+
+新适配器进一步修正库内传输在分支创建后才保存批次的缺口：每次远端变更前把有限路由/身份写入库外独立日志，响应保存失败仍有派发意图。清单保存失败时只读核验原分支所有批准字节，原执行闭合为失败后单独审阅 recover，沿用原分支/commit，不上传第二遍。日志不记录正文、附件字节或凭据。该算法全新实现，未复制旧 state 恢复代码。
+
+同一方案的外部 Node 与 Obsidian Node 曾因 ICU 对中文键排序不同产生 REVIEW_TAMPERED；canonical 改为固定 UTF-16 键序，不再依赖 localeCompare。多语言/多形态原生测试负责跨实际宿主验证。发布身份/组织用投影指纹，正文仅绑定选中和实际依赖的源文件；无关公开正文变化保持方案可用。

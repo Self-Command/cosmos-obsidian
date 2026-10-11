@@ -10,6 +10,8 @@ import { validate } from '../registry/schema.js';
 import { compileContent } from '../templates/content.js';
 import { entityAttributes } from '../domain/entities.js';
 import {tags} from '../domain/tasks.js';
+import {journalPublication,readPublicationJournal} from './publication-journal.js';
+import {createHash} from 'node:crypto';
 import type { EntityPreparation } from './entities.js';
 import type { Plan, Step } from '../workflows/types.js';
 import { CosmosError } from '../errors.js';
@@ -143,6 +145,17 @@ export async function preparePublication(ctx:Context,raw:unknown,bindingId:strin
     for(const p of Object.keys(preview.sourceHashes))await ctx.read(p);
     for(const asset of preview.assets)if(asset.source&&ctx.app.vault.getAbstractFileByPath(asset.source))ctx.depend({path:asset.source,kind:'file',hash:(await import('../domain/identity.js')).bytesHash(fs.readFileSync(await safeTarget(ctx.vaultPath,asset.source)))});
     step={action:'publish.upload',path:manifestPath,data:{preview},expected:{}};
+  } else if(input.action==='recover') {
+    const executionId=input.execution;
+    if(!ctx.stateRoot||!/^e-[0-9a-f-]{36}$/.test(executionId))throw new CosmosError('INVALID_ID','恢复需要原发布执行 ID。');
+    const execution=JSON.parse(fs.readFileSync(path.join(ctx.stateRoot,'executions',executionId+'.json'),'utf8'));
+    if(execution.bindingId!==bindingId||execution.state!=='failed')throw new CosmosError('INVALID_STATE','先复检原执行并确认已停止，再预览恢复。');
+    const prior=JSON.parse(fs.readFileSync(path.join(ctx.stateRoot,'reviews',execution.reviewId+'.json'),'utf8'));
+    if(prior.bindingId!==bindingId||fingerprint(prior.plan)!==prior.planHash||prior.plan.steps.length!==1||prior.plan.steps[0].action!=='publish.upload')throw new CosmosError('INVALID_STATE','只能恢复原批准的单批次上传。');
+    const preview=prior.plan.steps[0].data.preview;
+    const batch=await unrecordedBatch(ctx,executionId,preview);
+    if((await service.manifest()).transactions.some((t:any)=>t.id===batch.id||['uploaded','merged'].includes(t.state)))throw new CosmosError('INVALID_STATE','清单已有该批次或其他未闭合批次。');
+    step={action:'publish.recover',path:manifestPath,data:{originalExecution:executionId,batch},expected:{}};
   } else if(input.action==='withdraw') {
     const p=await service.withdrawPreview(input.id);delete p.manifest;
     step={action:'publish.withdraw',path:manifestPath,data:{id:input.id,preview:p},expected:{}};
@@ -166,15 +179,28 @@ export async function executePublication(ctx:Context,step:Step) {
     });
     const id=await service.register(file,step.expected.properties,await ctx.app.vault.read(file));return {id,path:file.path};
   }
+  return journalPublication(ctx,async()=>{
   if(step.action==='publish.upload') {
     const before=(await service.manifest()).transactions.map((t:any)=>t.id);
     try{return {batch:await service.publish(step.data.preview)};}
-    catch(error){const batches=(await service.manifest()).transactions.filter((t:any)=>!before.includes(t.id));if(batches.length===1)return {batch:batches[0],pending:true,error:error instanceof Error?error.message:String(error)};throw error;}
+    catch(error){const batches=(await service.manifest()).transactions.filter((t:any)=>!before.includes(t.id));if(batches.length===1)return {batch:batches[0],pending:true,error:error instanceof Error?error.message:String(error)};return {uncertain:true,journalExecution:ctx.executionId,error:error instanceof Error?error.message:String(error)};}
+  }
+  if(step.action==='publish.recover') {
+    const batch=await unrecordedBatch(ctx,step.data.originalExecution),manifest=await service.manifest();
+    if(fingerprint(batch)!==fingerprint(step.data.batch))throw new CosmosError('REVIEW_STALE','恢复分支、PR 或原批次内容变化。');
+    const raw=await ctx.app.vault.adapter.read(manifestPath).catch(()=>null);
+    manifest.transactions.push(batch);
+    for(const artifact of batch.artifacts)manifest.entries[artifact.id]={...manifest.entries[artifact.id],...artifact,blobSha:batch.blobs[artifact.id],transaction:batch.id,state:batch.state};
+    const target=await safeTarget(ctx.vaultPath,manifestPath);fs.mkdirSync(path.dirname(target),{recursive:true});
+    if((fs.existsSync(target)?fs.readFileSync(target,'utf8'):null)!==raw)throw new CosmosError('REVIEW_STALE','清单发生并发变化。');
+    const temp=target+'.cosmos-recover.tmp',fd=fs.openSync(temp,'w',0o600);try{fs.writeFileSync(fd,JSON.stringify(manifest,null,2)+'\n');fs.fsyncSync(fd);}finally{fs.closeSync(fd);}fs.renameSync(temp,target);
+    await service.resume();return {batch:(await service.manifest()).transactions.find((t:any)=>t.id===batch.id)};
   }
   if(step.action==='publish.resume') {await service.resume();return {batch:(await service.manifest()).transactions.find((t:any)=>t.id===step.data.batch)};}
   if(step.action==='publish.refresh') {const results=await service.refreshRemote();return {batch:(await service.manifest()).transactions.find((t:any)=>t.id===step.data.batch),results};}
   if(step.action==='publish.withdraw')return {batch:await service.withdraw(step.data.id,step.data.preview)};
   throw new CosmosError('CAPABILITY_MISSING','发布动作未登记。');
+  });
 }
 async function reader(ctx:Context) {
   const {modules,contract}=await load(ctx),plugin=ctx.app.plugins.plugins['obsidian-mkdocs-publisher'];
@@ -184,6 +210,30 @@ async function reader(ctx:Context) {
   const api=modules.transport({request,save:async()=>{},contract:contract.sourceBlobs,parseYaml:parse,decode:(v:string)=>Buffer.from(v,'base64').toString('utf8'),fetchPage:async(url:string)=>{const r=await fetch(url+'?amytis_verify='+Date.now(),{signal:AbortSignal.timeout(20000)});return {status:r.status,text:await r.text()};}});
   return {api,request};
 }
+async function unrecordedBatch(ctx:Context,executionId:string,suppliedPreview?:any) {
+  const journal=readPublicationJournal(ctx,executionId),branchEvent=journal.events.find(e=>e.route==='POST /repos/{owner}/{repo}/git/refs');
+  if(!branchEvent||typeof branchEvent.intent.ref!=='string'||!branchEvent.intent.ref.startsWith('refs/heads/amytis-publish/')||typeof branchEvent.intent.sha!=='string')throw new CosmosError('RESULT_UNCERTAIN','日志没有可核验的原发布分支；保留原证据。',{},5);
+  const branch=branchEvent.intent.ref.slice('refs/heads/'.length),commit=branchEvent.intent.sha;
+  const {request}=await reader(ctx),params={owner:'Self-Command',repo:'amytis'};
+  const ref=(await request('GET /repos/{owner}/{repo}/git/ref/{ref}',{...params,ref:'heads/'+branch})).data;
+  if(ref.object.sha!==commit)throw new CosmosError('REVIEW_STALE','原发布分支被修改，不能自动恢复。');
+  const remoteCommit=(await request('GET /repos/{owner}/{repo}/git/commits/{commit_sha}',{...params,commit_sha:commit})).data;
+  const tree=(await request('GET /repos/{owner}/{repo}/git/trees/{tree_sha}',{...params,tree_sha:remoteCommit.tree.sha,recursive:'1'})).data;
+  if(tree.truncated)throw new CosmosError('RESULT_UNCERTAIN','原发布分支清单不完整。',{},5);
+  let preview=suppliedPreview;
+  if(!preview){const e=JSON.parse(fs.readFileSync(path.join(ctx.stateRoot!,'executions',executionId+'.json'),'utf8'));const review=JSON.parse(fs.readFileSync(path.join(ctx.stateRoot!,'reviews',e.reviewId+'.json'),'utf8'));if(review.bindingId!==ctx.bindingId||fingerprint(review.plan)!==review.planHash)throw new CosmosError('REVIEW_TAMPERED','原上传方案不能核验。');preview=review.plan.steps[0]?.data.preview;}
+  if(!preview?.valid||!Array.isArray(preview.artifacts))throw new CosmosError('INVALID_STATE','原上传完整内容不可恢复。');
+  const blob=(bytes:Buffer)=>createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex'),blobs:Record<string,string>={};
+  for(const a of [...preview.artifacts,...preview.assets]) {
+    const sha=blob(a.content?Buffer.from(a.content):Buffer.from(a.bytes));
+    if(tree.tree.find((p:any)=>p.path===a.path)?.sha!==sha)throw new CosmosError('REVIEW_STALE','原发布分支与批准字节不一致。',{path:a.path});
+    if(a.id)blobs[a.id]=sha;
+  }
+  const prs=(await request('GET /repos/{owner}/{repo}/pulls',{...params,head:'Self-Command:'+branch,state:'all'})).data;
+  const pr=prs.find((p:any)=>p.head.sha===commit);
+  const artifacts=preview.artifacts.map(({content,record,...a}:any)=>a);
+  return {id:branch,branch,commit,baseHead:remoteCommit.parents[0]?.sha,state:pr?.merged_at?'merged':'uploaded',artifacts,blobs,deletions:preview.artifacts.map((a:any)=>a.oldPath).filter(Boolean),withdraw:false,created:remoteCommit.author.date,...(pr?{pr:pr.number,prUrl:pr.html_url,...(pr.merged_at?{mergedCommit:pr.merge_commit_sha}:{})}:{})};
+}
 export async function verifyPublication(ctx:Context,step:Step,observed?:any) {
   const {service}=await load(ctx),manifest=await service.manifest();
   if(['writing.create','publish.register','publish.copy'].includes(step.action)) {
@@ -191,7 +241,14 @@ export async function verifyPublication(ctx:Context,step:Step,observed?:any) {
     const id=step.expected.properties!.site_id;return {...local,verified:local.verified&&manifest.entries[id]?.sourcePath===step.path};
   }
   const batch=observed?.batch??manifest.transactions.find((t:any)=>t.id===step.data.batch);
-  if(!batch)return {verified:false,differences:['没有持久化批次，远端结果不确定。']};
+  if(!batch){
+    if(observed?.journalExecution){try{
+      const journal=readPublicationJournal(ctx,observed.journalExecution);
+      if(!journal.events.some(e=>e.route==='POST /repos/{owner}/{repo}/git/refs'))return {verified:false,recoverable:true,differences:[observed.error??'发布在分支派发前停止。'],publication:{state:'preflight-failed',execution:observed.journalExecution}};
+      const found=await unrecordedBatch(ctx,observed.journalExecution,step.data.preview);return {verified:false,uncertain:true,recoverable:true,differences:['原分支字节已核验，清单尚未保存；恢复需审阅原批次。'],publication:{state:'uploaded-unrecorded',batch:found.id,commit:found.commit,prUrl:found.prUrl,recovery:{action:'recover',execution:observed.journalExecution}}};
+    }catch(error){return {verified:false,uncertain:true,differences:[error instanceof Error?error.message:String(error)]};}}
+    return {verified:false,uncertain:true,differences:['没有持久化批次，远端结果不确定。']};
+  }
   const stored=manifest.transactions.find((t:any)=>t.id===batch.id);
   if(!stored||stored.commit!==batch.commit)return {verified:false,differences:['批次身份不匹配。']};
   const {api,request}=await reader(ctx);
