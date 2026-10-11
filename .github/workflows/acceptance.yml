@@ -58,6 +58,8 @@ jobs:
         run: ./tools/native/setup.ps1
       - name: Probe actual CLI and runtime API
         run: node tools/native/probe.mjs
+      - name: Exercise approved tasks through the actual native API
+        run: node tools/native/tasks.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: native-environment, path: artifacts/, if-no-files-found: error }
@@ -66,8 +68,8 @@ jobs:
     needs: [build, foundation, native]
     runs-on: ubuntu-latest
     steps:
-      - name: Require every D1 job to pass
+      - name: Require every implemented stage job to pass
         env:
           RESULTS: ${{ toJSON(needs) }}
         run: |
-          node -e 'const n=JSON.parse(process.env.RESULTS);if(Object.values(n).some(x=>x.result!=="success"))process.exit(1);console.log("D1 only: foundation and native capability validation passed; not a release gate.")'
+          node -e 'const n=JSON.parse(process.env.RESULTS);if(Object.values(n).some(x=>x.result!=="success"))process.exit(1);console.log("D1/D2 implementation checks passed; not a release gate.")'

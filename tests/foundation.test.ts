@@ -14,7 +14,7 @@ describe('input and identity boundaries', () => {
   it('derives public help and input contracts from implemented registry entries', () => {
     for (const operation of registry) {
       expect(commandHelp().find(x => x.id === operation.id)?.inputSchema).toEqual(operation.schema);
-      expect(operation.effect).toBe('read');
+      expect(['read','preview','write','state']).toContain(operation.effect);
       expect(() => validate(operation.schema, { eval: 'injected' })).toThrow();
     }
   });

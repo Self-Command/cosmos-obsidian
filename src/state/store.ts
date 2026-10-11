@@ -38,4 +38,7 @@ export class Store {
     if (review.bindingId !== bindingId) throw new CosmosError('WRONG_VAULT', '方案属于不同知识库。', {}, 3);
     if (fingerprint(review.plan) !== review.planHash || fingerprint(review.preview) !== review.previewHash) throw new CosmosError('REVIEW_TAMPERED', '方案或预览已被修改。');
   }
+  async assertPreviewFile(review: Review) {
+    if (fingerprint(await readFile(this.file('previews', review.id), 'utf8')) !== review.previewHash) throw new CosmosError('REVIEW_TAMPERED', '完整预览文件与实际方案不一致。');
+  }
 }

@@ -20,7 +20,27 @@ foreach ($asset in @('main.js','manifest.json','styles.css')) {
   Invoke-WebRequest -Uri "https://github.com/callumalpass/tasknotes/releases/download/4.13.8/$asset" -OutFile (Join-Path $nativeVault ".obsidian/plugins/tasknotes/$asset")
 }
 # Synthetic task configuration only; no production plugin settings are copied.
-@{tasksFolder='太阳/核聚变';taskTag='task';defaultTaskStatus='open';defaultTaskPriority='normal';taskNamingFormat='{{title}}';enableHttpApi=$false} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $nativeVault '.obsidian/plugins/tasknotes/data.json') -Encoding utf8NoBOM
+New-Item -ItemType Directory -Force -Path (Join-Path $nativeVault '太阳/核聚变'),(Join-Path $nativeVault 'rules'),(Join-Path $nativeVault 'templates') | Out-Null
+@{version=3;common=@{};entities=@{task=@{folder='太阳/核聚变';folders=@('太阳/核聚变');allowSubfolders=$true}};actions=@();stageCategories=@{'太阳/核聚变'=@()}} | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $nativeVault 'rules/schema.json') -Encoding utf8NoBOM
+@'
+---
+type: task
+project: []
+area: ""
+source: manual
+format: note
+publish: false
+tags: []
+route: "太阳/核聚变"
+---
+
+# {{title}}
+
+## 任务说明
+
+{{details}}
+'@ | Set-Content -LiteralPath (Join-Path $nativeVault 'templates/任务.md') -Encoding utf8NoBOM
+@{tasksFolder='太阳/核聚变';taskFilenameFormat='title';storeTitleInFilename=$true;taskIdentificationMethod='property';taskPropertyName='type';taskPropertyValue='task';defaultTaskStatus='open';defaultTaskPriority='normal';fieldMapping=@{projects='project';dateCreated='created';dateModified='updated'};taskCreationDefaults=@{useBodyTemplate=$true;bodyTemplate='templates/任务.md';defaultRecurrence='none';defaultDueDate='none';defaultScheduledDate='none'};enableHttpApi=$false} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $nativeVault '.obsidian/plugins/tasknotes/data.json') -Encoding utf8NoBOM
 @{version=1;vaultPath=$nativeVault;vaultName='Cosmos Acceptance';cliPath=$cli;stateRoot=$nativeState;schemaPath='rules/schema.json';timeoutMs=20000} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $nativeRoot 'binding.json') -Encoding utf8NoBOM
 "COSMOS_CONFIG=$(Join-Path $nativeRoot 'binding.json')" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 "COSMOS_NATIVE_ROOT=$nativeRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
