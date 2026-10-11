@@ -1,0 +1,73 @@
+name: Independent Cosmos candidate acceptance
+on:
+  push:
+    branches: [main, codex/**]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: '24.21.0', cache: npm }
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run verify:package
+      - uses: actions/upload-artifact@v4
+        with: { name: cosmos-candidate, path: dist/, if-no-files-found: error }
+  foundation:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix: { os: [ubuntu-latest, windows-latest] }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: '24.21.0', cache: npm }
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with: { name: cosmos-candidate, path: dist/ }
+      - run: npm run verify:package
+      - run: npm test
+      - run: node dist/cosmos.mjs help
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: 'foundation-${{ matrix.os }}', path: artifacts/, if-no-files-found: error }
+  native:
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: '24.21.0' }
+      - uses: actions/download-artifact@v4
+        with: { name: cosmos-candidate, path: dist/ }
+      - run: node tools/verify-package.mjs
+      - name: Install isolated official Obsidian and TaskNotes
+        shell: pwsh
+        run: ./tools/native/setup.ps1
+      - name: Probe actual CLI and runtime API
+        run: node tools/native/probe.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: native-environment, path: artifacts/, if-no-files-found: error }
+  stage-gate:
+    if: always()
+    needs: [build, foundation, native]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every D1 job to pass
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          node -e 'const n=JSON.parse(process.env.RESULTS);if(Object.values(n).some(x=>x.result!=="success"))process.exit(1);console.log("D1 only: foundation and native capability validation passed; not a release gate.")'
