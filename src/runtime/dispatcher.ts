@@ -25,6 +25,7 @@ export async function dispatch(app: any, requestPath: string) {
   const save = (value: unknown) => { const temp = receiptPath + '.tmp'; const fd = fs.openSync(temp, 'w', 0o600); try { fs.writeFileSync(fd, JSON.stringify(value)); fs.fsyncSync(fd); } finally { fs.closeSync(fd); } fs.renameSync(temp, receiptPath); };
   if (fs.existsSync(receiptPath)) return; // Never run an existing request again, including a started request.
   const base = { id: request.id, bindingId: request.bindingId };
+  let mutationProgress: { phase: string; index: number; steps: StepResult[] } | undefined;
   save({ ...base, state: 'started' });
   try {
     const vaultPath = fs.realpathSync(app.vault.adapter.getBasePath());
@@ -75,9 +76,11 @@ export async function dispatch(app: any, requestPath: string) {
           catch (error) { steps.push({index,action:step.action,path:step.path,state:'failed',verified:false,error:{code:error instanceof CosmosError?error.code:'PRECONDITION_FAILED',message:error instanceof Error?error.message:String(error)}});break; }
           save({ ...base, state: 'started', phase: 'dispatching', index, steps });
           try {
+            mutationProgress = { phase: 'dispatching', index, steps };
             const observed = await executeStep(ctx, step, request.id);
             const verification = await verifyStep(ctx, step, observed);
             steps.push({ index, action: step.action, path: step.path, state: verification.verified ? 'succeeded' : 'failed', verified: verification.verified, observed, error: verification.verified ? undefined : { code: 'VERIFICATION_FAILED', message: JSON.stringify(verification.differences) } });
+            mutationProgress = { phase: 'readback', index, steps };
             save({ ...base, state: 'started', phase: 'readback', index, steps });
             if (!verification.verified) break;
             const changed = new Set([step.path,step.source,...(step.data.links ?? []).map((link:any)=>link.path)]);
@@ -121,5 +124,9 @@ export async function dispatch(app: any, requestPath: string) {
       }
     } else throw new CosmosError('CAPABILITY_MISSING', '未登记此运行时能力。');
     save({ ...base, state: 'succeeded', result });
-  } catch (e) { save({ ...base, state: 'failed', error: { code: e instanceof CosmosError ? e.code : 'RUNTIME_FAILED', message: e instanceof Error ? e.message : String(e), details: e instanceof CosmosError ? e.details : undefined } }); }
+  } catch (e) {
+    const error = { code: e instanceof CosmosError ? e.code : 'RUNTIME_FAILED', message: e instanceof Error ? e.message : String(e), details: e instanceof CosmosError ? e.details : undefined };
+    // A failed final receipt save must retain its mutation progress, never become proof of zero writes.
+    save(mutationProgress ? { ...base, state: 'started', ...mutationProgress, error } : { ...base, state: 'failed', error });
+  }
 }

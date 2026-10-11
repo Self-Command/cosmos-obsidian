@@ -41,6 +41,7 @@ export async function verifyEntity(ctx: Context, step: Step) {
   if (step.expected.absent) return { verified: !file, differences: file ? ['recycled source still exists'] : [], path: step.path };
   if (!file) return { verified: false, differences: ['file missing'] };
   const actual = splitNote(await ctx.app.vault.read(file));
+  await ctx.metadata(file,actual.properties);
   const differences: string[] = [];
   if (actual.body !== step.expected.body?.trim()) differences.push('body differs');
   if (step.expected.sourceAbsent && step.source && ctx.app.vault.getAbstractFileByPath(step.source)) differences.push('source still exists');
