@@ -59,7 +59,7 @@ route: "太阳/核聚变"
 {{details}}
 '@ | Set-Content -LiteralPath (Join-Path $nativeVault 'templates/任务.md') -Encoding utf8NoBOM
 @{tasksFolder='太阳/核聚变';taskFilenameFormat='title';storeTitleInFilename=$true;taskIdentificationMethod='property';taskPropertyName='type';taskPropertyValue='task';defaultTaskStatus='open';defaultTaskPriority='normal';fieldMapping=@{projects='project';dateCreated='created';dateModified='updated'};taskCreationDefaults=@{useBodyTemplate=$true;bodyTemplate='templates/任务.md';defaultRecurrence='none';defaultDueDate='none';defaultScheduledDate='none'};enableHttpApi=$false} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $nativeVault '.obsidian/plugins/tasknotes/data.json') -Encoding utf8NoBOM
-@{version=1;vaultPath=$nativeVault;vaultName='Cosmos Acceptance';cliPath=$cli;stateRoot=$nativeState;schemaPath='rules/schema.json';templateFolder='templates';timeoutMs=20000} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $nativeRoot 'binding.json') -Encoding utf8NoBOM
+@{version=1;vaultPath=$nativeVault;vaultName='Cosmos Acceptance';cliPath=$cli;stateRoot=$nativeState;schemaPath='rules/schema.json';templateFolder='templates';timeoutMs=30000} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $nativeRoot 'binding.json') -Encoding utf8NoBOM
 "COSMOS_CONFIG=$(Join-Path $nativeRoot 'binding.json')" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 "COSMOS_NATIVE_ROOT=$nativeRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 Start-Process -FilePath $exe -ArgumentList @('--disable-gpu','--no-sandbox') -WindowStyle Hidden | Out-Null

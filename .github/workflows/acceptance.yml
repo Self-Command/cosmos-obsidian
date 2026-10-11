@@ -64,6 +64,9 @@ jobs:
         run: node tools/native/entities.mjs
       - name: Exercise all entities, lifecycle service, files and five real periodic creators
         run: node tools/native/business.mjs
+      - name: Preserve original receipts and execution outcomes
+        if: always()
+        run: node tools/native/diagnostics.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: native-environment, path: artifacts/, if-no-files-found: error }
