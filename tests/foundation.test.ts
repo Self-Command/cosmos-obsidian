@@ -22,6 +22,7 @@ describe('input and identity boundaries', () => {
     expect(fingerprint({ b: 2, a: [1, 3] })).toBe(fingerprint({ a: [1, 3], b: 2 }));
     expect(fingerprint({ a: [1, 3] })).not.toBe(fingerprint({ a: [3, 1] }));
     expect(canonical({ a: undefined, b: '中文' })).toBe('{"b":"中文"}');
+    expect(canonical({'月亮':2,'地球':1,'太阳':3,'A':4})).toBe('{"A":4,"地球":1,"太阳":3,"月亮":2}');
   });
   it.each(['../other.md', '/absolute.md', 'C:/other.md', 'a\\b.md', 'a//b.md', 'a/../b.md', 'a/NUL.md'])('rejects invalid vault target %s', input => { expect(() => notePath(input)).toThrow(); });
   it.each(['CON', 'aux.md', 'name.', 'name ', 'a:b', 'a\u0000b'])('rejects invalid filenames %s', input => { expect(() => name(input)).toThrow(); });
