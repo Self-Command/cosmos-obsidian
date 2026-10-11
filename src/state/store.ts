@@ -1,8 +1,9 @@
-import { mkdir, open, readFile, rename, unlink } from 'node:fs/promises';
+import { mkdir, open, readFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { CosmosError } from '../errors.js';
 import { fingerprint } from '../domain/identity.js';
+import {replaceFile} from './atomic.js';
 
 export type ReviewState = 'review-ready' | 'cancelled' | 'superseded' | 'stale' | 'executing' | 'succeeded' | 'partial' | 'failed' | 'uncertain';
 export interface Review { id: string; bindingId: string; state: ReviewState; plan: unknown; planHash: string; preview: string; previewHash: string; executionId?: string; createdAt: string }
@@ -20,7 +21,7 @@ export class Store {
     const temp = file + '.' + randomUUID() + '.tmp';
     const handle = await open(temp, 'wx', 0o600);
     try { await handle.writeFile(bytes, 'utf8'); await handle.sync(); } finally { await handle.close(); }
-    try { await rename(temp, file); } catch (e) { await unlink(temp).catch(() => {}); throw e; }
+    try { await replaceFile(temp, file); } catch (e) { await unlink(temp).catch(() => {}); throw e; }
   }
   async lock(bindingId: string, executionId: string) {
     await mkdir(path.join(this.root, 'locks'), { recursive: true });

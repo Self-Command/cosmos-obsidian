@@ -11,6 +11,7 @@ import { taskEnvironment } from '../domain/tasks.js';
 import { object, text, validate } from '../registry/schema.js';
 import type { Plan, StepResult } from '../workflows/types.js';
 import type { Review } from '../state/store.js';
+import {replaceFileSync} from '../state/atomic.js';
 
 function assertStoredReview(review: Review, bindingId: string, root: string) {
   if (review.bindingId !== bindingId || fingerprint(review.plan) !== review.planHash || fingerprint(review.preview) !== review.previewHash || fingerprint(fs.readFileSync(path.join(root, 'previews', review.id + '.md'), 'utf8')) !== review.previewHash) throw new CosmosError('REVIEW_TAMPERED', '预览或方案不匹配。');
@@ -22,7 +23,7 @@ export async function dispatch(app: any, requestPath: string) {
   if (request.version !== 1 || !/^[eq]-[0-9a-f-]{36}$/.test(request.id) || request.receiptPath !== path.join(root, 'receipts', request.id + '.json')) throw new CosmosError('INVALID_INPUT', '运行时请求不合法。');
   const receiptPath = request.receiptPath;
   fs.mkdirSync(path.dirname(receiptPath), { recursive: true });
-  const save = (value: unknown) => { const temp = receiptPath + '.tmp'; const fd = fs.openSync(temp, 'w', 0o600); try { fs.writeFileSync(fd, JSON.stringify(value)); fs.fsyncSync(fd); } finally { fs.closeSync(fd); } fs.renameSync(temp, receiptPath); };
+  const save = (value: unknown) => { const temp = receiptPath + '.tmp'; const fd = fs.openSync(temp, 'w', 0o600); try { fs.writeFileSync(fd, JSON.stringify(value)); fs.fsyncSync(fd); } finally { fs.closeSync(fd); } replaceFileSync(temp, receiptPath); };
   if (fs.existsSync(receiptPath)) return; // Never run an existing request again, including a started request.
   const base = { id: request.id, bindingId: request.bindingId };
   let mutationProgress: { phase: string; index: number; steps: StepResult[] } | undefined;
