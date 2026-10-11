@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { canonical, fingerprint, name, notePath, safeTarget } from '../src/domain/identity.js';
@@ -26,7 +26,7 @@ describe('input and identity boundaries', () => {
     const root = await temp(), vault = path.join(root, 'vault'), outside = path.join(root, 'outside');
     await mkdir(vault); await mkdir(outside); await symlink(outside, path.join(vault, 'linked'), process.platform === 'win32' ? 'junction' : 'dir');
     await expect(safeTarget(vault, 'linked/new.md')).rejects.toThrow();
-    expect(await safeTarget(vault, 'notes/new.md')).toBe(path.join(vault, 'notes/new.md'));
+    expect(await safeTarget(vault, 'notes/new.md')).toBe(path.join(await realpath(vault), 'notes/new.md'));
   });
 });
 describe('durable state and binding', () => {
