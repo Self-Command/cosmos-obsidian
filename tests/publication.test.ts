@@ -57,6 +57,15 @@ describe('publication boundaries and local planning',()=>{
     await expect(preparePublication(f.ctx(),{action:'register',path:parent,values:v({kind:'book',role:'index',outline:[{section:'First part',items:[{link:'[['+child.replace(/\.md$/,'')+']]'}]}]})},'bound')).rejects.toThrow();
     const plan=await preparePublication(f.ctx(),{action:'register',path:parent,values:v({language:'en',kind:'book',role:'index',outline:[{section:'First part',items:[{link:'[['+child.replace(/\.md$/,'')+']]'}]}]})},'bound');expect(plan.steps[0]!.expected.properties!.site_outline[0].section).toBe('First part');expect(plan.steps[0]!.expected.properties!.site_members).toBeUndefined();
   });
+  it('renders public book introductions and index titles inside the one public range',async()=>{
+    const f=await vault(),p=await prepareWriting(f.ctx(),{action:'writing.create',name:'Book',values:v({kind:'book',role:'index',permission:false})},'bound');
+    expect(p.template.introFieldId).toBe('book-introduction');
+    const fields=Object.fromEntries(p.template.fields.map(field=>[field.id,field.anchors.map(a=>'**'+a+'**\n\nConcrete synthetic purpose and limits.').join('\n\n')||'Concrete synthetic public book introduction.']));
+    const plan=await fillEntity(f.ctx(),p,{fields},'bound');const body=plan.steps[0]!.expected.body!;
+    expect(body.indexOf('<!-- amytis:public:start -->')).toBeLessThan(body.indexOf('# Book'));
+    expect(body.indexOf('Concrete synthetic public book introduction.')).toBeLessThan(body.indexOf('<!-- amytis:public:end -->'));
+    expect(body.indexOf('<!-- amytis:public:end -->')).toBeLessThan(body.indexOf('## 组织定位（内部）'));
+  });
   it('excludes authentication from runtime fingerprints while binding changes to targets and merge policy',()=>{
     const app:any={plugins:{plugins:{'obsidian-mkdocs-publisher':{manifest:{version:'7.8.2'},settings:{github:{user:'Self-Command',repo:'amytis',branch:'main',token:'first',tokenSecret:'private-secret'}}}}}};
     const initial=publicationEnvironment(app);app.plugins.plugins['obsidian-mkdocs-publisher'].settings.github.token='second';app.plugins.plugins['obsidian-mkdocs-publisher'].settings.github.tokenSecret='another-secret';expect(publicationEnvironment(app)).toBe(initial);app.plugins.plugins['obsidian-mkdocs-publisher'].settings.github.repo='different';expect(publicationEnvironment(app)).not.toBe(initial);

@@ -121,6 +121,8 @@ export async function preparePublication(ctx:Context,raw:unknown,bindingId:strin
     const publicText=copy?service.adapter(await service.manifest()).publicBody({body:original.body,fm:{...original.properties,site_body:input.values.scope}}):'';
     const body=copy?(input.values.scope==='marked'?'<!-- amytis:public:start -->\n'+publicText+'\n<!-- amytis:public:end -->':publicText):original.body;
     const properties={...(copy?entityAttributes(ctx.schema,ctx.schema.entities.output,{},path.posix.dirname(target),new Date()):original.properties),...values(input.values,id)};
+    if(properties.site_role!=='index'||!['collection','series'].includes(properties.site_kind))delete properties.site_members;
+    if(properties.site_role!=='index'||properties.site_kind!=='book')delete properties.site_outline;
     await prospective(ctx,service,records,target,properties,body);
     const previous=(await service.manifest()).entries[id];
     if(previous?.path&&(previous.path.startsWith('content/en/')?'en':'zh')!==properties.site_locale||previous?.live&&original.properties.site_slug!==properties.site_slug)throw new CosmosError('INVALID_INPUT','已上传语言或已上线网址须保留，另建公开副本。');

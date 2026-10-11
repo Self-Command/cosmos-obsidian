@@ -10,6 +10,7 @@ const preview=input=>cli(['publish','preview','--input','-'],input);
 async function commit(review){assert.equal(review.state,'review-ready',JSON.stringify(review));const result=await cli(['publish','commit','--review',review.reviewId,'--confirm']);assert.equal(result.state,'succeeded',JSON.stringify(result));assert.equal(result.verified,true);return result;}
 function content(contract){return {fields:Object.fromEntries(contract.fields.map(field=>{
   const parts=[];if(field.repeat)parts.push('### A concrete synthetic example');
+  for(const table of field.tables){const rows=table.labels.length?table.labels:['Synthetic evidence'];parts.push('| '+table.header.join(' | ')+' |\n| '+table.header.map(()=> '---').join(' | ')+' |\n'+rows.map(label=>'| '+[label,...table.header.slice(1).map(()=> 'Explicit synthetic observation and unknown limits')].join(' | ')+' |').join('\n'));}
   for(const anchor of field.anchors)parts.push('**'+anchor+'**\n\nSynthetic evidence explains this item and the exact limits of the example.');
   parts.push(...field.fixed);if(!field.anchors.length)parts.push('A synthetic source provides an explicit observation and supports this bounded conclusion.');
   return [field.id,parts.join('\n\n')];
@@ -44,7 +45,26 @@ try {
   const seriesName='合成系列-'+suffix,seriesValues=baseValues('zh','series-'+suffix,'Synthetic series',{kind:'series',role:'index',excerpt:'Synthetic ordered reading sequence',members:['[['+registered[0].path.replace(/\.md$/,'')+']]']});
   const seriesDraft=await cli(['draft','open','--input','-'],{action:'writing.create',name:seriesName,values:seriesValues});assert.equal(seriesDraft.state,'needs-content',JSON.stringify(seriesDraft));await commit(await cli(['draft','preview','--draft',seriesDraft.draftId,'--input','-'],content(seriesDraft.contentContract)));results.push({case:'native-series/order/permission',passed:true});
   query=await cli(['query','publication','--input','-'],{});const copyId=query.publication.candidates.find(c=>c.path===copy.summary.changes[0].path).id;
-  const upload=await preview({action:'upload',ids:[registered[0].id,registered[1].id,copyId]});assert.equal(upload.state,'review-ready',JSON.stringify(upload));const full=await readFile(upload.preview.path,'utf8');assert.ok(full.includes('public/assets/'));assert.ok(!full.includes('## 写作准备（内部）'));assert.ok(!full.includes('## Writing notes (private)'));
+  const added=[];
+  const repository='Self-Command/cosmos-obsidian-publication-fixture';
+  const tree=await fetch('https://api.github.com/repos/'+repository+'/git/trees/main?recursive=1',{headers:{Authorization:'Bearer '+process.env.PUBLICATION_TOKEN,'X-GitHub-Api-Version':'2022-11-28'}}).then(r=>r.json());assert.ok(Array.isArray(tree.tree));
+  let day=Number(process.env.GITHUB_RUN_NUMBER??1),flowDate;
+  do{flowDate=new Date(Date.UTC(2000,0,1)+day++*86400000).toISOString().slice(0,10);}while(tree.tree.some(p=>p.path==='content/flows/'+flowDate.slice(0,4)+'/'+flowDate.slice(5,7)+'/'+flowDate.slice(8,10)+'.md'));
+  for(const [entity,kind] of [['knowledge','note'],['note','flow']]){
+    const name='合成'+kind+'-'+suffix,opened=await cli(['draft','open','--input','-'],{entity,name});await commit(await cli(['draft','preview','--draft',opened.draftId,'--input','-'],content(opened.contentContract)));
+    const source=(entity==='knowledge'?'月亮/满月/':'星云/分子云/速记/')+name+'.md';await commit(await preview({action:'register',path:source,values:baseValues('zh',kind+'-'+suffix,'Synthetic '+kind,{kind,scope:'whole',...(kind==='flow'?{date:flowDate}:{})})}));added.push(source);results.push({case:'native-register-'+kind,passed:true});
+  }
+  const bookChapter='合成章节-'+suffix,chapterValues=baseValues('en','chapter-'+suffix,'Synthetic chapter',{kind:'book'});
+  const chapterDraft=await cli(['draft','open','--input','-'],{action:'writing.create',name:bookChapter,values:chapterValues});assert.equal(chapterDraft.state,'needs-content',JSON.stringify(chapterDraft));await commit(await cli(['draft','preview','--draft',chapterDraft.draftId,'--input','-'],content(chapterDraft.contentContract)));
+  const chapterPath='太阳/光球/文章/'+bookChapter+'.md';added.push(chapterPath);
+  const bookName='合成书籍-'+suffix,bookValues=baseValues('en','book-'+suffix,'Synthetic book',{kind:'book',role:'index',outline:[{section:'A bounded synthetic topic',items:[{link:'[['+chapterPath.replace(/\.md$/,'')+']]'}]}]});
+  const bookDraft=await cli(['draft','open','--input','-'],{action:'writing.create',name:bookName,values:bookValues});assert.equal(bookDraft.state,'needs-content',JSON.stringify(bookDraft));await commit(await cli(['draft','preview','--draft',bookDraft.draftId,'--input','-'],content(bookDraft.contentContract)));results.push({case:'native-book/outline/chapter/public-introduction',passed:true});
+  const collectionName='合成专题-'+suffix,collectionValues=baseValues('zh','collection-'+suffix,'Synthetic collection',{kind:'collection',role:'index',excerpt:'Synthetic topical collection',members:['[['+copy.summary.changes[0].path.replace(/\.md$/,'')+']]']});
+  const collectionDraft=await cli(['draft','open','--input','-'],{action:'writing.create',name:collectionName,values:collectionValues});assert.equal(collectionDraft.state,'needs-content',JSON.stringify(collectionDraft));await commit(await cli(['draft','preview','--draft',collectionDraft.draftId,'--input','-'],content(collectionDraft.contentContract)));
+  // This collection is separately permitted, but the upload selecting its child does not silently select it.
+  added.push('太阳/光球/文章/'+collectionName+'.md');results.push({case:'native-collection/separate-permission/ordered-members',passed:true});
+  query=await cli(['query','publication','--input','-'],{});const addedIds=added.map(p=>query.publication.candidates.find(c=>c.path===p).id);
+  const upload=await preview({action:'upload',ids:[registered[0].id,registered[1].id,copyId,...addedIds]});assert.equal(upload.state,'review-ready',JSON.stringify(upload));const full=await readFile(upload.preview.path,'utf8');assert.ok(full.includes('public/assets/'));assert.ok(!full.includes('## 写作准备（内部）'));assert.ok(!full.includes('## Writing notes (private)'));
   await native('app.__cosmosFixtureFailPR=true');
   const sent=await commit(upload);const pending=sent.steps[0].observed.batch;assert.equal(pending.state,'uploaded');assert.ok(sent.steps[0].observed.pending);results.push({case:'real-upload/failure-after-branch/persisted-batch',passed:true,batch:pending.id,commit:pending.commit});
   const repeated=await cli(['publish','commit','--review',upload.reviewId,'--confirm']);assert.equal(repeated.executionId,sent.executionId);assert.equal(repeated.steps[0].observed.batch.commit,pending.commit);results.push({case:'repeat-commit/no-new-upload',passed:true});
@@ -64,7 +84,10 @@ try {
   // Rename locally after live verification: stable site_id and canonical URL remain unchanged.
   const renamed=await cli(['change','preview','--input','-'],{actions:[{action:'file.rename',path:registered[1].path,name:'本地改名-'+suffix}]});await commit(renamed);
   const reupload=await preview({action:'upload',ids:[registered[1].id]});assert.equal(reupload.state,'review-ready',JSON.stringify(reupload));const p=await readFile(reupload.preview.path,'utf8');assert.ok(p.includes('/en/posts/acceptance-'+suffix+'/'));await cli(['review','cancel','--review',reupload.reviewId]);results.push({case:'local-rename/stable-id-and-url',passed:true});
-  const withdraw=await preview({action:'withdraw',id:copyId});assert.equal(withdraw.state,'review-ready',JSON.stringify(withdraw));const withdrawn=await commit(withdraw);results.push({case:'real-explicit-withdraw/managed-file',passed:true,batch:withdrawn.steps[0].observed.batch.id});
+  // A public collection still references the copy; withdrawing it is correctly refused.
+  const blockedWithdrawal=await preview({action:'withdraw',id:copyId});assert.equal(blockedWithdrawal.ok,false);results.push({case:'withdraw/referenced-public-member-rejected',passed:true});
+  const standalone=query.publication.candidates.find(c=>c.path===registered[1].path)?.id??registered[1].id;
+  const withdraw=await preview({action:'withdraw',id:standalone});assert.equal(withdraw.state,'review-ready',JSON.stringify(withdraw));const withdrawn=await commit(withdraw);results.push({case:'real-explicit-withdraw/managed-file',passed:true,batch:withdrawn.steps[0].observed.batch.id});
   const withdrawBatch=withdrawn.steps[0].observed.batch;
   let withdrawal;
   for(let i=0;i<100;i++){withdrawal=await cli(['execution','verify','--execution',withdrawn.executionId]);if(i%5===0)console.log(JSON.stringify({phase:'withdrawal-observation',publication:withdrawal.steps?.[0]?.publication,state:withdrawal.state}));if(withdrawal.steps?.[0]?.publication?.state==='withdrawn')break;await new Promise(r=>setTimeout(r,7000));}
