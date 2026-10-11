@@ -2,10 +2,11 @@ import { object } from './schema.js';
 import { taskSchema, taskChangeSchema } from '../domain/tasks.js';
 import { entitySchema } from '../domain/entities.js';
 import { changeSchema, draftSchema } from '../domain/changes.js';
-import { notesQuerySchema, actionsQuerySchema } from '../runtime/queries.js';
+import { notesQuerySchema, actionsQuerySchema,modelQuerySchema } from '../runtime/queries.js';
 import {publicationSchema} from '../domain/publication.js';
 export interface Operation { id: string; command: string; effect: 'read' | 'preview' | 'write' | 'state'; schema: object; capabilities: string[]; description: string }
 export const registry: Operation[] = [
+  {id:'query.model',command:'query model',effect:'read',schema:modelQuerySchema,capabilities:[],description:'按所需实体或分类读取当前职责、目录与属性目录；不返回模板正文。'},
   {id:'publish.preview',command:'publish preview',effect:'preview',schema:publicationSchema,capabilities:[],description:'预览公开副本、身份/语言/组织、上传、批次恢复/刷新或撤稿。'},
   {id:'publish.commit',command:'publish commit',effect:'write',schema:object({}),capabilities:[],description:'批准后提交原发布方案。'},
   {id:'query.publication',command:'query publication',effect:'read',schema:object({}),capabilities:[],description:'读取当前公开候选与持久化批次。'},

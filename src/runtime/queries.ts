@@ -4,6 +4,11 @@ import { splitNote } from '../templates/markdown.js';
 import { CosmosError } from '../errors.js';
 export const notesQuerySchema = object({ path: text, title: text, entity: text, folder: text, includeBody: { type: 'boolean' }, limit: { type: 'integer', minimum: 1, maximum: 100 } });
 export const actionsQuerySchema = object({ path: text }, ['path']);
+export const modelQuerySchema = object({entity:text,category:text});
+export async function queryModel(ctx:Context,raw:unknown) {
+  const input=validate<any>(modelQuerySchema,raw),schema=await ctx.rules();
+  return {version:schema.version,entities:Object.entries(schema.entities).filter(([id])=>!input.entity||id===input.entity).map(([id,entity]:[string,any])=>({id,folder:entity.folder,folders:entity.folders,statuses:entity.statuses,defaultStatus:entity.defaultStatus,fields:Object.fromEntries(entity.fields.map((key:string)=>[key,schema.common[key]])),categories:Object.entries(schema.stageCategories??{}).flatMap(([stage,names]:[string,any])=>names.filter((name:string)=>!input.category||name===input.category).filter((name:string)=>(entity.folders??[entity.folder]).some((root:string)=>stage+'/'+name===root||entity.allowSubfolders!==false&&(stage+'/'+name).startsWith(root+'/'))).map((name:string)=>({name,folder:stage+'/'+name})))}))};
+}
 export async function queryNotes(ctx: Context, raw: unknown) {
   const input = validate<any>(notesQuerySchema, raw), schema = await ctx.rules();
   const files = input.path ? [ctx.app.vault.getAbstractFileByPath(input.path)].filter(Boolean) : ctx.app.vault.getMarkdownFiles().filter((file: any) => (!input.title || file.basename.includes(input.title)) && (!input.folder || file.path.startsWith(input.folder + '/')));

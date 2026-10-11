@@ -1,4 +1,5 @@
-import { readFile } from 'node:fs/promises';
+import { readFile,appendFile } from 'node:fs/promises';
+import path from 'node:path';
 import { loadConfig } from '../config.js';
 import { Obsidian } from '../adapters/obsidian.js';
 import { failure, CosmosError } from '../errors.js';
@@ -7,6 +8,8 @@ import { validate } from '../registry/schema.js';
 import { Reviews } from '../workflows/review.js';
 import { Drafts } from '../workflows/drafts.js';
 export async function main(argv = process.argv.slice(2)) {
+  const started=performance.now(),startedAt=new Date().toISOString();
+  let adapter:Obsidian|undefined;
   const args = [...argv];
   let configFile: string | undefined;
   const index = args.indexOf('--config');
@@ -17,16 +20,21 @@ export async function main(argv = process.argv.slice(2)) {
   const inputFile = option('--input'), reviewId = option('--review'), executionId = option('--execution'), draftId = option('--draft');
   const confirmed = clean.includes('--confirm'); if (confirmed) clean.splice(clean.indexOf('--confirm'), 1);
   let result;
-  if (!clean.length || clean[0] === 'help' || clean[0] === '--help') result = { ok: true, version: 1, commands: commandHelp(), input: 'UTF-8 JSON stdin or --input file', config: 'COSMOS_CONFIG or --config binding.json' };
+  if (!clean.length || clean[0] === 'help' || clean[0] === '--help') {
+    const requested=clean.slice(1).join(' '),commands=commandHelp().filter(x=>!requested||x.command===requested||x.command.startsWith(requested+' '));
+    if(!commands.length)throw new CosmosError('INVALID_INPUT','没有此业务命令。');
+    result = { ok: true, version: 1, commands, input: 'UTF-8 JSON stdin or --input file', config: 'COSMOS_CONFIG or --config binding.json' };
+  }
   else {
     const operation = findOperation(clean.join(' '));
     if (!operation) throw new CosmosError('INVALID_INPUT', '命令未实现或参数不合法；运行 cosmos help 查看已实现能力。');
     if (confirmed && !['review.commit','publish.commit'].includes(operation.id)) throw new CosmosError('INVALID_INPUT', '--confirm 仅用于提交。');
-    const adapter = new Obsidian(await loadConfig(configFile)), reviews = new Reviews(adapter);
-    if (['task.preview','entity.preview','draft.open','draft.preview','change.preview','publish.preview','query.publication','query.tasks','query.notes','query.actions'].includes(operation.id)) {
-      if (!inputFile) throw new CosmosError('INVALID_INPUT', '此命令需要 --input <file|->。');
+    adapter = new Obsidian(await loadConfig(configFile));const reviews = new Reviews(adapter);
+    if (['task.preview','entity.preview','draft.open','draft.preview','change.preview','publish.preview','query.publication','query.tasks','query.notes','query.actions','query.model'].includes(operation.id)) {
+      if (!inputFile&&!['query.model','query.publication'].includes(operation.id)) throw new CosmosError('INVALID_INPUT', '此命令需要 --input <file|->。');
       let bytes: string;
-      if (inputFile === '-') { const chunks: Buffer[] = []; for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk)); bytes = Buffer.concat(chunks).toString('utf8'); }
+      if(!inputFile)bytes='{}';
+      else if (inputFile === '-') { const chunks: Buffer[] = []; for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk)); bytes = Buffer.concat(chunks).toString('utf8'); }
       else bytes = await readFile(inputFile, 'utf8');
       let input;
       try { input = JSON.parse(bytes.replace(/^\uFEFF/, '')); } catch { throw new CosmosError('INVALID_INPUT', '输入需要 UTF-8 JSON。'); }
@@ -44,6 +52,7 @@ export async function main(argv = process.argv.slice(2)) {
       result = operation.id === 'execution.status' ? await reviews.status(executionId) : await reviews.verify(executionId);
     }
   }
+  if(process.env.COSMOS_TRACE==='1'&&adapter)await appendFile(path.join(adapter.config.stateRoot,'metrics.jsonl'),JSON.stringify({command:clean.join(' '),startedAt,milliseconds:performance.now()-started,requests:adapter.timings,reviewId:(result as any).reviewId,draftId:(result as any).draftId,executionId:(result as any).executionId,state:(result as any).state})+'\n');
   process.stdout.write(JSON.stringify(result, null, pretty ? 2 : undefined) + '\n');
   if (!(result as any).ok) process.exitCode = (result as any).state === 'uncertain' ? 5 : 4;
 }

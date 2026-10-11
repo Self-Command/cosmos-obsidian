@@ -6,7 +6,7 @@ import { Context } from './context.js';
 import { prepareTask, prepareTaskChange, executeTask, verifyTask } from './tasks.js';
 import { prepareEntity, fillEntity, executeEntity, verifyEntity } from './entities.js';
 import { prepareDraft, prepareChanges, executeStep, verifyStep } from './business.js';
-import { queryNotes, queryActions } from './queries.js';
+import { queryNotes, queryActions,queryModel } from './queries.js';
 import { taskEnvironment } from '../domain/tasks.js';
 import { object, text, validate } from '../registry/schema.js';
 import type { Plan, StepResult } from '../workflows/types.js';
@@ -53,6 +53,7 @@ export async function dispatch(app: any, requestPath: string) {
       const input = validate<any>(object({ preparation: { type: 'object' }, content: { type: 'object' } }, ['preparation','content']), request.input);
       result = await fillEntity(ctx, input.preparation, input.content, request.bindingId);
     }
+    else if(request.action==='query.model')result=await queryModel(ctx,request.input);
     else if (request.action === 'change.prepare') {
       result = await prepareChanges(ctx, request.input, request.bindingId);
     } else if (request.action === 'query.notes') result = await queryNotes(ctx, request.input);
@@ -84,9 +85,11 @@ export async function dispatch(app: any, requestPath: string) {
           await save({ ...base, state: 'started', phase: 'dispatching', index, steps });
           try {
             mutationProgress = { phase: 'dispatching', index, steps };
+            const executionStarted=performance.now();
             const observed = await executeStep(ctx, step, request.id);
+            const readbackStarted=performance.now();
             const verification = await verifyStep(ctx, step, observed);
-            steps.push({ index, action: step.action, path: step.path, state: verification.verified ? 'succeeded' : verification.uncertain?'uncertain':'failed', verified: verification.verified, observed, publication:verification.publication, error: verification.verified ? undefined : { code: 'VERIFICATION_FAILED', message: JSON.stringify(verification.differences) } });
+            steps.push({ index, action: step.action, path: step.path, state: verification.verified ? 'succeeded' : verification.uncertain?'uncertain':'failed', verified: verification.verified, observed, publication:verification.publication,timings:{executeMs:readbackStarted-executionStarted,readbackMs:performance.now()-readbackStarted}, error: verification.verified ? undefined : { code: 'VERIFICATION_FAILED', message: JSON.stringify(verification.differences) } });
             mutationProgress = { phase: 'readback', index, steps };
             await save({ ...base, state: 'started', phase: 'readback', index, steps });
             if (!verification.verified) break;

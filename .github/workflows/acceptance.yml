@@ -49,7 +49,8 @@ jobs:
       - uses: actions/checkout@v4
         with: { persist-credentials: false }
       - uses: actions/setup-node@v4
-        with: { node-version: '24.21.0' }
+        with: { node-version: '24.21.0', cache: npm }
+      - run: npm ci --ignore-scripts
       - uses: actions/download-artifact@v4
         with: { name: cosmos-candidate, path: dist/ }
       - run: node tools/verify-package.mjs
@@ -72,14 +73,34 @@ jobs:
         with: { name: native-environment, path: artifacts/, if-no-files-found: error }
   stage-gate:
     if: always()
-    needs: [build, foundation, native, publication]
+    needs: [build, foundation, native, publication, installation]
     runs-on: ubuntu-latest
     steps:
       - name: Require every implemented stage job to pass
         env:
           RESULTS: ${{ toJSON(needs) }}
         run: |
-          node -e 'const n=JSON.parse(process.env.RESULTS);if(Object.values(n).some(x=>x.result!=="success"))process.exit(1);console.log("D1–D5 implementation checks passed; not a release gate.")'
+          node -e 'const n=JSON.parse(process.env.RESULTS);if(Object.values(n).some(x=>x.result!=="success"))process.exit(1);console.log("Implemented functional/package checks passed; required model and release gates are still separate.")'
+  installation:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix: {os: [ubuntu-latest, windows-latest]}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '24.21.0',cache: npm}
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with: {name: cosmos-candidate,path: dist/}
+      - run: node tools/verify-package.mjs
+      - run: node tools/installation-acceptance.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: 'installation-${{ matrix.os }}',path: artifacts/,if-no-files-found: error}
   publication:
     needs: build
     runs-on: windows-latest
@@ -91,7 +112,8 @@ jobs:
       - uses: actions/checkout@v4
         with: {persist-credentials: false}
       - uses: actions/setup-node@v4
-        with: {node-version: '24.21.0'}
+        with: {node-version: '24.21.0', cache: npm}
+      - run: npm ci --ignore-scripts
       - uses: actions/download-artifact@v4
         with: {name: cosmos-candidate, path: dist/}
       - run: node tools/verify-package.mjs
