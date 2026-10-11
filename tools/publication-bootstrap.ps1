@@ -9,6 +9,7 @@ Invoke-WebRequest -Uri "https://codeload.github.com/Self-Command/amytis/zip/$sou
 Expand-Archive -LiteralPath $archive -DestinationPath $fixtureRoot
 $source=Join-Path $fixtureRoot "amytis-$sourceSha"
 $siteText=[IO.File]::ReadAllText((Join-Path $source 'site.config.example.ts')).Replace('enabled: false,','enabled: true,').Replace("defaultLocale: 'en'","defaultLocale: 'zh'").Replace("locales: ['en']","locales: ['zh', 'en']").Replace('My Garden','Synthetic Cosmos Acceptance').Replace('https://example.com','https://self-command.github.io/amytis').Replace('providers: [],','providers: [] as string[],').Replace('bottomLinks: [],','bottomLinks: [] as Array<{ text: string; url: string }>,')
+$siteText=$siteText.Replace('name: "Articles",','name: { zh: "文章", en: "Articles" },').Replace('name: "Series",','name: { zh: "系列", en: "Series" },').Replace('name: "Books",','name: { zh: "书籍", en: "Books" },').Replace('name: "Flow",','name: { zh: "随笔", en: "Flow" },')
 # No production config, content, imports, tests, documentation or personal asset trees are copied.
 $allowedRoot=@('package.json','bun.lock','next.config.ts','tsconfig.json','postcss.config.mjs','eslint.config.mjs','site.config.example.ts')
 $payload=Join-Path $fixtureRoot 'api.json'

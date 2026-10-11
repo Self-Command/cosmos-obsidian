@@ -49,8 +49,21 @@ async function track(ctx:Context, service:any, remote=false) {
     // data.json contains authentication; track only the policy fields in memory and on disk.
     ctx.environment.publication=publicationEnvironment(ctx.app);
     ctx.environment.publicationDisk=await policyDisk(ctx);
+    await requirePublication(ctx);
   }
   return records;
+}
+async function requirePublication(ctx:Context) {
+  const p=ctx.app.plugins.plugins['obsidian-mkdocs-publisher'];
+  if(p?.manifest?.version!=='7.8.2'||p.__amytisBridgeVersion!==1||!p.__amytisLoadedFingerprint)throw new CosmosError('CAPABILITY_MISSING','需要已加载的 Enveloppe 7.8.2 受控 bridge v1。',{},3);
+  const marker=JSON.parse(await ctx.read('宇宙/演化/变更/amytis-implementation.json'));
+  if(p.__amytisLoadedFingerprint!==marker.patchedFingerprint||(await import('../domain/identity.js')).bytesHash(fs.readFileSync(await safeTarget(ctx.vaultPath,pluginRoot+'/main.js')))!==marker.patchedFingerprint)throw new CosmosError('CAPABILITY_MISSING','发布插件加载指纹不一致。',{},3);
+  const contract=JSON.parse(await ctx.read(ctx.schema.scriptFolder+'/lib/publish-contract.json'));
+  const disk=JSON.parse(fs.readFileSync(await safeTarget(ctx.vaultPath,pluginRoot+'/data.json'),'utf8'));
+  for(const settings of [p.settings,disk]){
+    if(settings?.github?.user!=='Self-Command'||settings.github.repo!=='amytis'||settings.github.branch!=='main')throw new CosmosError('CAPABILITY_MISSING','发布目标政策不匹配。',{},3);
+    for(const rule of contract.settings){const value=rule.pointer.slice(1).split('/').reduce((v:any,k:string)=>v?.[k],settings);if(fingerprint(value??null)!==fingerprint(rule.value))throw new CosmosError('CAPABILITY_MISSING','发布配置政策不匹配。',{pointer:rule.pointer},3);}
+  }
 }
 export async function policyDisk(ctx:Context) {
   const data=JSON.parse(fs.readFileSync(await safeTarget(ctx.vaultPath,pluginRoot+'/data.json'),'utf8'));

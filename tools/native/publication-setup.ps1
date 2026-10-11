@@ -13,7 +13,7 @@ New-Item -ItemType Directory -Force -Path (Join-Path $vault '宇宙/演化/变�
 @{patchedFingerprint=$fingerprint}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $vault '宇宙/演化/变更/amytis-implementation.json') -Encoding utf8NoBOM
 $contract=Get-Content -LiteralPath 'tests/fixtures/model-v3/services/publish-contract.json' -Raw | ConvertFrom-Json -AsHashtable
 # Exact source config changes only for the synthetic fixture. All renderer source blob checks stay real.
-$contract.sourceBlobs['site.config.ts']='63ba27e8ed4696a05f21754738d0bb66e2e20ef4'
+$contract.sourceBlobs['site.config.ts']='571e77bbe3d0a980d5bc1dbba7430dd921a011aa'
 $settings=@{github=@{user='Self-Command';repo='amytis';branch='main';automaticallyMergePR=$true;verifiedRepo=$true;tokenSecret='cosmos-publication-fixture';otherRepo=@();dryRun=@{enable=$false;folderName='enveloppe'};api=@{tiersForApi='Github Free/Pro/Team (default)';hostname=''};workflow=@{commitMessage='Synthetic';name='deploy.yml'};rateLimit=0};upload=@{};embed=@{};conversion=@{};plugin=@{}}
 foreach($rule in $contract.settings){$keys=$rule.pointer.TrimStart('/').Split('/');$cursor=$settings;foreach($key in $keys[0..($keys.Length-2)]){if(!$cursor.ContainsKey($key)){$cursor[$key]=@{}};$cursor=$cursor[$key]};$cursor[$keys[-1]]=$rule.value}
 $settings|ConvertTo-Json -Depth 20|Set-Content -LiteralPath (Join-Path $plugin 'data.json') -Encoding utf8NoBOM

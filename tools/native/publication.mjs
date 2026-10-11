@@ -16,8 +16,10 @@ function content(contract){return {fields:Object.fromEntries(contract.fields.map
 }))};}
 const baseValues=(language,slug,title,extra={})=>({language,kind:'post',slug,date:'2026-10-01',title,permission:true,scope:'marked',tags:['acceptance'],...extra});
 try {
-  await native("await app.plugins.loadManifests(); await app.plugins.enablePluginAndSave('obsidian-mkdocs-publisher'); 'enabled'");
-  for(let i=0;i<25;i++){const probe=await cli(['query','publication','--input','-'],{});if(probe.ok)break;await new Promise(r=>setTimeout(r,300));}
+  console.log(JSON.stringify(await native("await app.plugins.loadManifests(); await app.plugins.enablePluginAndSave('obsidian-mkdocs-publisher'); 'enabled'")));
+  let publisher;
+  for(let i=0;i<25;i++){const probe=await cli(['inspect','capabilities']);publisher=probe.capabilities?.publication;if(publisher?.bridge===1)break;await new Promise(r=>setTimeout(r,300));}
+  if(publisher?.bridge!==1){console.log(JSON.stringify(await run(binding.cliPath,['vault='+binding.vaultName,'dev:errors'])));throw Error('Real Enveloppe bridge did not load: '+JSON.stringify(publisher));}
   await writeFile(path.join(binding.vaultPath,'星云/星尘/附件/图片/pixel.png'),Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aMkoAAAAASUVORK5CYII=','base64'));
   await new Promise(r=>setTimeout(r,500));
   const registered=[];
@@ -67,6 +69,6 @@ try {
   for(let i=0;i<100;i++){withdrawal=await cli(['execution','verify','--execution',withdrawn.executionId]);if(withdrawal.steps?.[0]?.publication?.state==='withdrawn')break;await new Promise(r=>setTimeout(r,7000));}
   assert.equal(withdrawal.steps?.[0]?.publication?.state,'withdrawn',JSON.stringify(withdrawal));await commit(await preview({action:'refresh',batch:withdrawBatch.id}));results.push({case:'real-withdraw/deployment-and-page-404',passed:true});
 } finally {
-  await mkdir('artifacts',{recursive:true});await writeFile('artifacts/native-publication.json',JSON.stringify({sourceSha:process.env.GITHUB_SHA,runId:process.env.GITHUB_RUN_ID,candidate:JSON.parse(await readFile('dist/manifest.json','utf8')),mapping:{repository:'Self-Command/amytis → Self-Command/cosmos-obsidian-publication-fixture',urls:'https://self-command.github.io/amytis/* → https://self-command.github.io/cosmos-obsidian-publication-fixture/amytis/*',renderer:'d8099a39aa63f9dddace3fb2c32ce72daa6cae37',syntheticConfigBlob:'63ba27e8ed4696a05f21754738d0bb66e2e20ef4',testOnly:true},results},null,2));
+  await mkdir('artifacts',{recursive:true});await writeFile('artifacts/native-publication.json',JSON.stringify({sourceSha:process.env.GITHUB_SHA,runId:process.env.GITHUB_RUN_ID,candidate:JSON.parse(await readFile('dist/manifest.json','utf8')),mapping:{repository:'Self-Command/amytis → Self-Command/cosmos-obsidian-publication-fixture',urls:'https://self-command.github.io/amytis/* → https://self-command.github.io/cosmos-obsidian-publication-fixture/amytis/*',renderer:'d8099a39aa63f9dddace3fb2c32ce72daa6cae37',syntheticConfigBlob:'571e77bbe3d0a980d5bc1dbba7430dd921a011aa',testOnly:true},results},null,2));
 }
 console.log(JSON.stringify({nativePublicationCases:results.length}));
