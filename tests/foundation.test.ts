@@ -6,10 +6,18 @@ import { canonical, fingerprint, name, notePath, safeTarget } from '../src/domai
 import { Store, newId, type Review } from '../src/state/store.js';
 import { object, text, validate } from '../src/registry/schema.js';
 import { loadConfig } from '../src/config.js';
+import { commandHelp, registry } from '../src/registry/index.js';
 const cleanup: string[] = [];
 async function temp() { const root = await mkdtemp(path.join(os.tmpdir(), 'cosmos-foundation-')); cleanup.push(root); return root; }
 afterEach(async () => { for (const root of cleanup.splice(0)) await rm(root, { recursive: true, force: true }); });
 describe('input and identity boundaries', () => {
+  it('derives public help and input contracts from implemented registry entries', () => {
+    for (const operation of registry) {
+      expect(commandHelp().find(x => x.id === operation.id)?.inputSchema).toEqual(operation.schema);
+      expect(operation.effect).toBe('read');
+      expect(() => validate(operation.schema, { eval: 'injected' })).toThrow();
+    }
+  });
   it('hashes equivalent normalized inputs consistently without dropping arrays', () => {
     expect(fingerprint({ b: 2, a: [1, 3] })).toBe(fingerprint({ a: [1, 3], b: 2 }));
     expect(fingerprint({ a: [1, 3] })).not.toBe(fingerprint({ a: [3, 1] }));

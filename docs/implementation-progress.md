@@ -10,4 +10,11 @@
 - 原生 job 从官方来源安装 Obsidian 1.14.4 与 TaskNotes 4.13.8，在临时合成库验证真实 CLI、API 版本及能力。生产库不参与测试。
 - 当前门禁仅表示 D1，不表示发行通过。D2–D7 尚未完成，旧技能不能删除。
 
+### Actions 证据
+
+- 初始 run `38152694607` 发现根级忽略规则误排除 `src/state`，已修复。
+- run `38153248359`：构建/Linux 通过；Windows 路径断言需按真实规范路径核对；Obsidian 已运行但测试库尚未启用 TaskNotes。两项已修复。
+- run [`38153803734`](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38153803734)，候选 `de948f4f51208a6895c15566d04d6984d1507a69`：build、两平台 foundation、真实 native、D1 gate 全部 success。基础用例 19 个/平台；原生 TaskNotes 4.13.8 API v1 与读写/重复能力已核验。
+- 上述是 D1 可行性与基础证据，不代表任务写入、业务覆盖或最终发行已通过。
+
 代码全部重新实现；未移植旧源码片段。继承不变式的逐项记录见 `design/reuse-audit.md`。
