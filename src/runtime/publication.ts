@@ -9,6 +9,7 @@ import { publicationSchema, writingSchema } from '../domain/publication.js';
 import { validate } from '../registry/schema.js';
 import { compileContent } from '../templates/content.js';
 import { entityAttributes } from '../domain/entities.js';
+import {tags} from '../domain/tasks.js';
 import type { EntityPreparation } from './entities.js';
 import type { Plan, Step } from '../workflows/types.js';
 import { CosmosError } from '../errors.js';
@@ -72,7 +73,7 @@ export async function policyDisk(ctx:Context) {
 function values(raw:any, id:string) {
   if(raw.members&&((raw.role??'entry')!=='index'||!['collection','series'].includes(raw.kind))||raw.outline&&((raw.role??'entry')!=='index'||raw.kind!=='book'))throw new CosmosError('INVALID_INPUT','成员仅属于专题/系列目录；大纲仅属于书籍目录。');
   if(raw.kind==='book'&&raw.role==='index'&&raw.members||['collection','series'].includes(raw.kind)&&raw.outline)throw new CosmosError('INVALID_INPUT','不能创建重复的组织清单。');
-  return {site_target:'amytis',site_id:id,site_locale:raw.language,site_kind:raw.kind,site_role:raw.role??'entry',site_slug:raw.slug,site_date:raw.date,title:raw.title,excerpt:raw.excerpt??'',coverImage:raw.coverImage??'',tags:raw.tags??[],publish:raw.permission,site_body:raw.scope,...(raw.members?{site_members:raw.members}:{}),...(raw.outline?{site_outline:raw.outline}:{})};
+  return {site_target:'amytis',site_id:id,site_locale:raw.language,site_kind:raw.kind,site_role:raw.role??'entry',site_slug:raw.slug,site_date:raw.date,title:raw.title.trim(),excerpt:raw.excerpt??'',coverImage:raw.coverImage??'',tags:tags(raw.tags),publish:raw.permission,site_body:raw.scope,...(raw.members?{site_members:raw.members}:{}),...(raw.outline?{site_outline:raw.outline}:{})};
 }
 async function prospective(ctx:Context, service:any, records:any[], notePath:string, properties:any, body:string) {
   const record={path:notePath,fm:properties,body,raw:noteBytes(properties,body)};
@@ -93,6 +94,9 @@ export async function prepareWriting(ctx:Context,raw:unknown,bindingId:string):P
   const name=title(input.name),target=notePath(folder+'/'+name+'.md');await ctx.target(target);
   const v=input.values,variant=(v.role==='index'?'amytisIndex':v.kind==='book'?'amytisChapter':'amytisArticle')+(v.language==='en'?'En':'');
   const template=compileContent(ctx.schema.specialTemplates?.[variant]?.body??'');
+  if(v.kind==='book'&&v.role==='index') {
+    template.introFieldId='book-introduction';template.fields.unshift({id:'book-introduction',label:v.language==='en'?'Public book introduction':'公开书籍介绍',kind:'markdown',skeleton:'',guidance:['本段明确写入公开区间；介绍本书的问题、阅读顺序与边界。'],anchors:[],tables:[],repeat:false,flexibleTitle:false,fixed:[]});
+  }
   const properties:Record<string,any>={...entityAttributes(ctx.schema,ctx.schema.entities.output,{tags:v.tags},folder,new Date()),...values(v,randomUUID())};
   if(v.kind==='book'&&(v.role??'entry')==='entry')properties.site_kind='post';
   if(input.relations?.project)properties.project=[await ctx.relation(input.relations.project,'project')];

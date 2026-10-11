@@ -16,8 +16,10 @@
     };
     return client;
   };
-  const originalFetch=globalThis.fetch;
-  globalThis.fetch=function(input,options){
+  // The candidate is a Node-loaded module; Obsidian plugin and Node realms have different globals.
+  const nodeGlobal=require('node:vm').runInThisContext('globalThis');
+  const originalFetch=nodeGlobal.fetch;
+  nodeGlobal.fetch=function(input,options){
     const url=typeof input==='string'?input:input?.url;
     if(url?.startsWith('https://self-command.github.io/amytis/')){
       return originalFetch('https://self-command.github.io/'+fixtureRepository+url.slice('https://self-command.github.io'.length),options);

@@ -54,6 +54,7 @@ try {
   let verified;
   for(let i=0;i<100;i++){
     verified=await cli(['execution','verify','--execution',resumed.executionId]);
+    if(i%5===0)console.log(JSON.stringify({phase:'deployment-observation',publication:verified.steps?.[0]?.publication,state:verified.state}));
     if(verified.steps?.[0]?.publication?.state==='live')break;
     await new Promise(r=>setTimeout(r,7000));
   }
@@ -66,7 +67,7 @@ try {
   const withdraw=await preview({action:'withdraw',id:copyId});assert.equal(withdraw.state,'review-ready',JSON.stringify(withdraw));const withdrawn=await commit(withdraw);results.push({case:'real-explicit-withdraw/managed-file',passed:true,batch:withdrawn.steps[0].observed.batch.id});
   const withdrawBatch=withdrawn.steps[0].observed.batch;
   let withdrawal;
-  for(let i=0;i<100;i++){withdrawal=await cli(['execution','verify','--execution',withdrawn.executionId]);if(withdrawal.steps?.[0]?.publication?.state==='withdrawn')break;await new Promise(r=>setTimeout(r,7000));}
+  for(let i=0;i<100;i++){withdrawal=await cli(['execution','verify','--execution',withdrawn.executionId]);if(i%5===0)console.log(JSON.stringify({phase:'withdrawal-observation',publication:withdrawal.steps?.[0]?.publication,state:withdrawal.state}));if(withdrawal.steps?.[0]?.publication?.state==='withdrawn')break;await new Promise(r=>setTimeout(r,7000));}
   assert.equal(withdrawal.steps?.[0]?.publication?.state,'withdrawn',JSON.stringify(withdrawal));await commit(await preview({action:'refresh',batch:withdrawBatch.id}));results.push({case:'real-withdraw/deployment-and-page-404',passed:true});
 } finally {
   await mkdir('artifacts',{recursive:true});await writeFile('artifacts/native-publication.json',JSON.stringify({sourceSha:process.env.GITHUB_SHA,runId:process.env.GITHUB_RUN_ID,candidate:JSON.parse(await readFile('dist/manifest.json','utf8')),mapping:{repository:'Self-Command/amytis → Self-Command/cosmos-obsidian-publication-fixture',urls:'https://self-command.github.io/amytis/* → https://self-command.github.io/cosmos-obsidian-publication-fixture/amytis/*',renderer:'d8099a39aa63f9dddace3fb2c32ce72daa6cae37',syntheticConfigBlob:'a047d5732bbe9c791626165d880d2b298474d56e',testOnly:true},results},null,2));

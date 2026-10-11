@@ -13,7 +13,7 @@ export interface ContentField {
   anchors: string[]; tables: { header: string[]; labels: string[]; optionalLabels: boolean }[];
   repeat: boolean; flexibleTitle: boolean; fixed: string[];
 }
-export interface ContentTemplate { version: 1; mapping: 'sections-v1'; hash: string; prefix: string; fields: ContentField[]; sections: { title: string; fieldId?: string; fixed?: string; suffix: string }[] }
+export interface ContentTemplate { version: 1; mapping: 'sections-v1'; hash: string; prefix: string; introFieldId?:string; fields: ContentField[]; sections: { title: string; fieldId?: string; fixed?: string; suffix: string }[] }
 const row = (line: string) => line.trim().replace(/^\|/, '').replace(/\|$/, '').split(/(?<!\\)\|/).map(x => x.trim());
 function tables(raw: string) {
   const lines = raw.split('\n'), result: string[][][] = [];
@@ -99,5 +99,7 @@ export function renderContent(template: ContentTemplate, title: string, content:
     if (item.title !== undefined && (!field.flexibleTitle || typeof item.title !== 'string' || /[\r\n<>#]/.test(item.title) || !item.title.trim())) fail(field, '此字段不允许更换标题或标题格式不合法。');
     checkSection(field, item.markdown); rendered.set(field.id, { title: item.title ?? field.label, markdown: item.markdown.trim() });
   }
-  return [template.prefix, '# ' + title, ...template.sections.map(section => { const field = section.fieldId && rendered.get(section.fieldId); return '## ' + (field ? field.title : section.title) + '\n\n' + (field ? field.markdown : section.fixed ?? '') + (section.suffix ? '\n\n' + section.suffix : ''); })].filter(Boolean).join('\n\n').trim();
+  const closedPrefix=template.prefix.includes('<!-- amytis:public:end -->');
+  const prefix=closedPrefix?template.prefix.replace('<!-- amytis:public:end -->','# '+title+'\n\n'+(template.introFieldId?rendered.get(template.introFieldId)!.markdown+'\n\n':'')+'<!-- amytis:public:end -->'):template.prefix;
+  return [prefix,closedPrefix?'':'# ' + title, ...template.sections.map(section => { const field = section.fieldId && rendered.get(section.fieldId); return '## ' + (field ? field.title : section.title) + '\n\n' + (field ? field.markdown : section.fixed ?? '') + (section.suffix ? '\n\n' + section.suffix : ''); })].filter(Boolean).join('\n\n').trim();
 }
