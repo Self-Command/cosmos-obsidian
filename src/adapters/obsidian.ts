@@ -5,13 +5,13 @@ import { fileURLToPath } from 'node:url';
 import type { Config } from '../config.js';
 import { Store, newId } from '../state/store.js';
 import { CosmosError } from '../errors.js';
-export interface Receipt { id: string; state: 'started' | 'succeeded' | 'failed'; result?: any; error?: { code: string; message: string }; bindingId: string }
+export interface Receipt { id: string; state: 'started' | 'succeeded' | 'failed'; result?: any; error?: { code: string; message: string; details?: Record<string,unknown> }; bindingId: string }
 export class Obsidian {
   store: Store;
   constructor(public config: Config, public runtimePath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'cosmos-runtime.cjs')) { this.store = new Store(config.stateRoot); }
   async request(action: string, input: unknown = {}, id = newId('q')): Promise<Receipt> {
     const requestPath = this.store.file('requests', id), receiptPath = this.store.file('receipts', id);
-    await this.store.write('requests', id, { version: 1, id, bindingId: this.config.bindingId, vaultPath: this.config.vaultPath, schemaPath: this.config.schemaPath, action, input, receiptPath });
+    await this.store.write('requests', id, { version: 1, id, bindingId: this.config.bindingId, vaultPath: this.config.vaultPath, schemaPath: this.config.schemaPath, templateFolder: this.config.templateFolder, action, input, receiptPath });
     // Only package-owned bootstrap code enters eval. Business input is read from the request file.
     const code = `(async()=>await require(${JSON.stringify(this.runtimePath)}).dispatch(app,${JSON.stringify(requestPath)}))()`;
     const child = spawn(this.config.cliPath, [`vault=${this.config.vaultName}`, 'eval', `code=${code}`], { shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });

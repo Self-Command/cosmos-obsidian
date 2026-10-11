@@ -4,6 +4,7 @@ import { fingerprint } from '../domain/identity.js';
 import { CosmosError } from '../errors.js';
 import { Context } from './context.js';
 import { prepareTask, prepareTaskChange, executeTask, verifyTask } from './tasks.js';
+import { prepareEntity, fillEntity, executeEntity, verifyEntity } from './entities.js';
 import { taskEnvironment } from '../domain/tasks.js';
 import { object, text, validate } from '../registry/schema.js';
 import type { Plan, StepResult } from '../workflows/types.js';
@@ -26,7 +27,7 @@ export async function dispatch(app: any, requestPath: string) {
   try {
     const vaultPath = fs.realpathSync(app.vault.adapter.getBasePath());
     if (vaultPath !== fs.realpathSync(request.vaultPath) || request.bindingId !== fingerprint({ vaultPath, vaultName: app.vault.getName() })) throw new CosmosError('WRONG_VAULT', '运行中的库不匹配绑定。');
-    const ctx = new Context(app, vaultPath, request.schemaPath);
+    const ctx = new Context(app, vaultPath, request.schemaPath, request.templateFolder);
     let result;
     if (request.action === 'inspect') {
       const tasknotes = app.plugins.plugins.tasknotes, api = tasknotes?.api;
@@ -34,6 +35,14 @@ export async function dispatch(app: any, requestPath: string) {
       const settings = snapshot && Object.fromEntries(['tasksFolder','taskFilenameFormat','customFilenameTemplate','storeTitleInFilename','defaultTaskStatus','defaultTaskPriority','taskCreationDefaults','fieldMapping','userFields','taskIdentificationMethod','taskTag','taskPropertyName','taskPropertyValue','archiveFolder','excludedFolders'].map(key => [key, snapshot[key]]));
       result = { vaultName: app.vault.getName(), bindingId: request.bindingId, electron: process.versions.electron, tasknotes: tasknotes ? { version: tasknotes.manifest.version, apiVersion: api?.apiVersion, capabilities: ['tasks.read','tasks.write','model.read','model.validate','catalog.read','settings.snapshot','recurring.write','recurring.materialize'].filter(x => api?.hasCapability(x)), statuses: api?.catalog.statuses(), priorities: api?.catalog.priorities(), fields: api?.catalog.fields(), model: api?.model.config(), settings } : null, periodic: app.plugins.plugins['periodic-notes']?.manifest.version };
     } else if (request.action === 'task.prepare') result = await prepareTask(ctx, request.input, request.bindingId);
+    else if (request.action === 'entity.prepare') result = await prepareEntity(ctx, request.input, request.bindingId);
+    else if (request.action === 'entity.preview') {
+      const prepared = await prepareEntity(ctx, request.input, request.bindingId);
+      result = await fillEntity(ctx, prepared, request.input.content, request.bindingId);
+    } else if (request.action === 'entity.fill') {
+      const input = validate<any>(object({ preparation: { type: 'object' }, content: { type: 'object' } }, ['preparation','content']), request.input);
+      result = await fillEntity(ctx, input.preparation, input.content, request.bindingId);
+    }
     else if (request.action === 'change.prepare') {
       const input = validate<any>(object({ actions: { type: 'array', minItems: 1, maxItems: 50, items: { type: 'object' } } }, ['actions']), request.input);
       await ctx.rules(); const { plugin, api, settings } = ctx.tasknotes();
@@ -63,8 +72,8 @@ export async function dispatch(app: any, requestPath: string) {
           const step = plan.steps[index]!;
           save({ ...base, state: 'started', phase: 'dispatching', index, steps });
           try {
-            const observed = await executeTask(ctx, step, request.id);
-            const verification = await verifyTask(ctx, step, observed);
+            const observed = step.action.startsWith('task.') ? await executeTask(ctx, step, request.id) : await executeEntity(ctx, step);
+            const verification = step.action.startsWith('task.') ? await verifyTask(ctx, step, observed) : await verifyEntity(ctx, step);
             steps.push({ index, action: step.action, path: step.path, state: verification.verified ? 'succeeded' : 'failed', verified: verification.verified, observed, error: verification.verified ? undefined : { code: 'VERIFICATION_FAILED', message: JSON.stringify(verification.differences) } });
             save({ ...base, state: 'started', phase: 'readback', index, steps });
             if (!verification.verified) break;
@@ -93,7 +102,7 @@ export async function dispatch(app: any, requestPath: string) {
           const count = prior.state === 'started' ? Math.min(plan.steps.length, (prior.index ?? -1) + 1) : previous.length;
           for (let index = 0; index < count; index++) {
             const step = plan.steps[index]!, observed = previous[index]?.observed;
-            const verification = await verifyTask(ctx, step, observed);
+            const verification = step.action.startsWith('task.') ? await verifyTask(ctx, step, observed) : await verifyEntity(ctx, step);
             steps.push({ index, action: step.action, path: step.path, state: verification.verified ? 'succeeded' : 'uncertain', verified: verification.verified, observed });
           }
           const all = steps.length === plan.steps.length && steps.every(x => x.verified);
@@ -103,5 +112,5 @@ export async function dispatch(app: any, requestPath: string) {
       }
     } else throw new CosmosError('CAPABILITY_MISSING', '未登记此运行时能力。');
     save({ ...base, state: 'succeeded', result });
-  } catch (e) { save({ ...base, state: 'failed', error: { code: e instanceof CosmosError ? e.code : 'RUNTIME_FAILED', message: e instanceof Error ? e.message : String(e) } }); }
+  } catch (e) { save({ ...base, state: 'failed', error: { code: e instanceof CosmosError ? e.code : 'RUNTIME_FAILED', message: e instanceof Error ? e.message : String(e), details: e instanceof CosmosError ? e.details : undefined } }); }
 }

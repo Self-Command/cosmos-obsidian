@@ -57,9 +57,9 @@ export async function prepareTaskChange(ctx: Context, raw: unknown): Promise<Ste
     data.status = candidates[0].value; expected.properties!.status = data.status;
   } else {
     if (!task.recurrence) throw new CosmosError('INVALID_INPUT', '此任务没有重复规则。');
-    ctx.tasknotes(input.action === 'task.occurrence' ? 'recurring.materialize' : 'recurring.write');
+    ctx.tasknotes('recurring.write');
     data.date = input.date; data.completed = input.completed;
-    if (input.action !== 'task.occurrence') expected.properties![input.action === 'task.instance.complete' ? 'complete_instances' : 'skipped_instances'] = { date: input.date, included: input.completed };
+    expected.properties![input.action === 'task.instance.complete' ? 'complete_instances' : 'skipped_instances'] = { date: input.date, included: input.completed };
   }
   if (input.action === 'task.update') {
     const check = api.model.validatePatch(Object.fromEntries(Object.entries(data).map(([key, value]) => [key, value === null ? undefined : value])));
@@ -88,14 +88,13 @@ export async function executeTask(ctx: Context, step: Step, executionId: string)
       else task = current;
       break;
     }
-    case 'task.occurrence': task = await api.recurring.materializeOccurrence(step.path, step.data.date, mutation); break;
     default: throw new CosmosError('CAPABILITY_MISSING', '任务动作没有登记。', {}, 3);
   }
   return { task };
 }
 export async function verifyTask(ctx: Context, step: Step, observed?: any) {
   const { api, settings } = ctx.tasknotes();
-  const path = step.action === 'task.occurrence' ? observed?.task?.path : step.path;
+  const path = step.path;
   if (!path) return { verified: false, differences: ['occurrence path unavailable'] };
   const task = await api.tasks.get(path), file = ctx.app.vault.getAbstractFileByPath(path);
   if (!task || !file) return { verified: false, differences: ['task or file missing'] };

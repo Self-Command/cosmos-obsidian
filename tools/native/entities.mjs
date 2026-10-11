@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import path from 'node:path';
+const binding=JSON.parse(await readFile(process.env.COSMOS_CONFIG,'utf8')),results=[];
+const cli=(args,input)=>new Promise((resolve,reject)=>{
+  const child=spawn(process.execPath,['dist/cosmos.mjs',...args],{shell:false,windowsHide:true});let out='',err='';child.stdout.on('data',b=>out+=b);child.stderr.on('data',b=>err+=b);child.on('error',reject);child.on('close',code=>{try{resolve({code,...JSON.parse(out)});}catch{reject(Error(out+err));}});child.stdin.end(input===undefined?'':JSON.stringify(input));
+});
+const content=JSON.parse(await readFile('tests/fixtures/travel-content.json','utf8'));
+const opened=await cli(['draft','open','--input','-'],{entity:'record',category:'游记',name:'合成验收游记',attributes:{date:'2026-10-10'}});assert.equal(opened.state,'needs-content',JSON.stringify(opened));assert.equal(opened.contentContract.fields.length,6);
+const target=path.join(binding.vaultPath,'地球/地层/游记/合成验收游记.md');await assert.rejects(readFile(target));
+const first=await cli(['draft','preview','--draft',opened.draftId,'--input','-'],content);assert.equal(first.state,'review-ready',JSON.stringify(first));
+const revised=structuredClone(content);revised.fields.s2+='\n\n第二版补充了这份材料作为合成测试的用途。';
+const second=await cli(['draft','preview','--draft',opened.draftId,'--input','-'],revised);assert.equal(second.state,'review-ready',JSON.stringify(second));assert.equal(second.revision,2);
+const superseded=await cli(['review','commit','--review',first.reviewId,'--confirm']);assert.equal(superseded.error.code,'INVALID_STATE');await assert.rejects(readFile(target));
+const commit=await cli(['review','commit','--review',second.reviewId,'--confirm']);assert.equal(commit.state,'succeeded',JSON.stringify(commit));assert.equal(commit.verified,true);const actual=await readFile(target,'utf8');assert.ok(actual.includes('### 清晨 · 老桥'));assert.ok(actual.includes('第二版补充'));assert.ok(actual.includes('date: 2026-10-10'));assert.ok(!actual.includes('<%'));assert.equal((await cli(['execution','verify','--execution',commit.executionId])).state,'succeeded');results.push({case:'native-long-travel/draft-revision/readback/recovery',passed:true});
+const cancelled=await cli(['entity','preview','--input','-'],{entity:'record',category:'游记',name:'取消合成游记',attributes:{date:'2026-10-10'},content});assert.equal(cancelled.state,'review-ready',JSON.stringify(cancelled));await cli(['review','cancel','--review',cancelled.reviewId]);assert.equal((await cli(['review','commit','--review',cancelled.reviewId,'--confirm'])).error.code,'INVALID_STATE');await assert.rejects(readFile(path.join(binding.vaultPath,'地球/地层/游记/取消合成游记.md')));results.push({case:'native-entity-cancel-zero-write',passed:true});
+const stale=await cli(['draft','open','--input','-'],{entity:'record',category:'游记',name:'漂移合成游记',attributes:{date:'2026-10-10'}});assert.equal(stale.state,'needs-content',JSON.stringify(stale));await writeFile(path.join(binding.vaultPath,'templates/游记.md'),(await readFile(path.join(binding.vaultPath,'templates/游记.md'),'utf8'))+'\n<!-- drift -->');const stalePreview=await cli(['draft','preview','--draft',stale.draftId,'--input','-'],content);assert.equal(stalePreview.error.code,'REVIEW_STALE');results.push({case:'native-draft-template-drift',passed:true});
+const book=await cli(['draft','open','--input','-'],{entity:'study',name:'合成书籍研读',variant:'bookStudy'});assert.equal(book.state,'needs-content',JSON.stringify(book));assert.ok(book.contentContract.fields.some(f=>f.label==='阅读问题'));results.push({case:'native-book-study-template-selection',passed:true});
+await mkdir('artifacts',{recursive:true});await writeFile('artifacts/native-entities.json',JSON.stringify({sourceSha:process.env.GITHUB_SHA,results},null,2));console.log(JSON.stringify({nativeEntityCases:results.length}));

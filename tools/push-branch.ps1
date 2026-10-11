@@ -7,10 +7,16 @@ $remoteCommit=gh api "repos/$Repository/git/ref/heads/$Branch" --jq '.object.sha
 if ($LASTEXITCODE -ne 0 -or $remoteCommit -ne (git rev-parse HEAD^)) { throw 'Remote parent differs; inspect history before publishing.' }
 $baseTree=gh api "repos/$Repository/git/commits/$remoteCommit" --jq '.tree.sha'
 $entries=@()
-foreach ($file in @(git diff --name-only $remoteCommit HEAD)) {
+foreach ($file in @(git -c core.quotepath=false diff --name-only $remoteCommit HEAD)) {
   if (!(Test-Path -LiteralPath $file)) { $entries+=@{path=$file;mode='100644';type='blob';sha=$null};continue }
   if ((git hash-object -- $file) -ne (git rev-parse "HEAD:$file")) { throw "Working file differs from committed bytes: $file" }
-  $entries+=@{path=$file;mode='100644';type='blob';content=[IO.File]::ReadAllText((Join-Path (Get-Location) $file))}
+  # Publish exact Git bytes, including canonical line endings and the final newline.
+  $blobFile=Join-Path $env:TEMP ('cosmos-blob-'+[guid]::NewGuid()+'.txt')
+  try {
+    git cat-file blob "HEAD:$file" > $blobFile
+    if ($LASTEXITCODE -ne 0 -or (git hash-object --no-filters -- $blobFile) -ne (git rev-parse "HEAD:$file")) { throw "Cannot read exact committed blob: $file" }
+    $entries+=@{path=$file;mode='100644';type='blob';content=[IO.File]::ReadAllText($blobFile)}
+  } finally { Remove-Item -LiteralPath $blobFile -ErrorAction SilentlyContinue }
 }
 $inputFile=Join-Path $env:TEMP ('cosmos-api-'+[guid]::NewGuid()+'.json')
 try {

@@ -13,7 +13,7 @@ export class Reviews {
   constructor(public adapter: Obsidian) { this.store = adapter.store; }
   async preview(action: string, input: unknown) {
     const receipt = await this.adapter.request(action, input);
-    if (receipt.state !== 'succeeded') throw new CosmosError(receipt.error?.code ?? 'PREVIEW_FAILED', receipt.error?.message ?? '无法生成实际预览。');
+    if (receipt.state !== 'succeeded') throw new CosmosError(receipt.error?.code ?? 'PREVIEW_FAILED', receipt.error?.message ?? '无法生成实际预览。', receipt.error?.details);
     return this.savePlan(receipt.result as Plan);
   }
   async savePlan(plan: Plan) {

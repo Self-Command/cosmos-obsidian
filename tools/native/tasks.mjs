@@ -26,9 +26,6 @@ const updated=await cli(['review','commit','--review',update.reviewId,'--confirm
 const query=await cli(['query','tasks','--input','-'],{title:'验收中文任务'});assert.equal(query.tasks.length,1);assert.equal(query.tasks[0].scheduled,undefined);assert.equal(query.tasks[0].due,'2026-10-14');
 const reopen=await cli(['change','preview','--input','-'],{actions:[{action:'task.uncomplete',path:'太阳/核聚变/验收中文任务.md'}]});assert.equal(reopen.state,'review-ready',JSON.stringify(reopen));assert.equal((await cli(['review','commit','--review',reopen.reviewId,'--confirm'])).state,'succeeded');results.push({case:'update-clear-dates/query/uncomplete',passed:true});
 // Simulate a lost outer result after the native receipt finished. Recovery must read the original receipt.
-const executionFile=path.join(binding.stateRoot,'executions',commit.executionId+'.json'),reviewFile=path.join(binding.stateRoot,'reviews',preview.reviewId+'.json');
-const savedExecution=JSON.parse(await readFile(executionFile,'utf8')),savedReview=JSON.parse(await readFile(reviewFile,'utf8'));
-// Verify the original create before a different authorized update changes its expected properties.
 const recoveryPreview=await cli(['task','preview','--input','-'],{...task,title:'恢复回执任务'});const recoveryCommit=await cli(['review','commit','--review',recoveryPreview.reviewId,'--confirm']);assert.equal(recoveryCommit.state,'succeeded',JSON.stringify(recoveryCommit));
 const recoveryExecutionFile=path.join(binding.stateRoot,'executions',recoveryCommit.executionId+'.json'),recoveryReviewFile=path.join(binding.stateRoot,'reviews',recoveryPreview.reviewId+'.json');
 const recoveryExecution=JSON.parse(await readFile(recoveryExecutionFile,'utf8')),recoveryReview=JSON.parse(await readFile(recoveryReviewFile,'utf8'));

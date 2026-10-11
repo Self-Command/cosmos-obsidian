@@ -61,3 +61,14 @@
 | I02 | 旧 protocol/dependencies 的不可变预览原则 | 绑定实际方案内容；新单一内部哈希，不向模型暴露 | state/store；改预览/改方案/错库拒绝用例，待 Actions |
 | I03 | 旧 transport 的 argv、无 shell、外置数据和回执原则 | 避免内容成为代码；进程退出不等于写入终止 | adapters/obsidian、runtime/dispatcher；真实 Obsidian API 握手，待 Actions |
 | I04 | 旧 state 的不确定执行保留锁原则 | 防止重复派发；新锁记录 execution ID，不按超时抢锁 | state/store；单库互斥及原锁保留测试，待 Actions |
+
+## D2/D3 实际采用记录（2026-10-12）
+
+| ID | 来源与范围 | 采用理由及改造 | 独立验证 |
+| --- | --- | --- | --- |
+| I05 | 旧 task-fields.mjs 的字段职责原则；不复制源码 | 日期/时长/优先级分别解析，实际 API 目录及配置由 TaskNotes 读取；不继承旧 prepare/plan 协议 | run 38154834060、38155405309 的新领域/状态及真实原生测试 |
+| I06 | 旧 templates.mjs 的结构保护原则；不复制算法/源码 | 新 sections-v1 AST 契约；代码保留章节、固定标签/表格、查询和公开标记，输入只填当前草稿字段 | 新 content.test.ts 与 native/entities.mjs；D3 Actions 待核验 |
+| I07 | 旧 prepared-operations.mjs 的漂移及修订原则；不复制源码 | 草稿保存在独立 Store，修改生成新 review，先废止旧 review，再保存修订，重启读取同一 draft ID | 新持久草稿与实际模板漂移测试；D3 Actions 待核验 |
+| E01 | 当前库的 model v3 与 38 份空模板，作为环境契约夹具 | 明确模型职责和结构；排除用户笔记、发布身份、凭据、偏好及标签。不是旧技能执行代码，运行时读取实际绑定模板 | fixture README 记录隐私边界，当前模板文件/内联模板分类测试 |
+
+D1 I01–I04 的新通过证据为 run 38153803734；后续任务候选在双平台再次核验。所有引用仅提供行为和环境契约；当前实现没有搬入旧运行模块。

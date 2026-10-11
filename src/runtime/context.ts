@@ -8,7 +8,7 @@ import { taskEnvironment } from '../domain/tasks.js';
 export class Context {
   dependencies: Dependency[] = [];
   schema: any;
-  constructor(public app: any, public vaultPath: string, public schemaPath: string) {}
+  constructor(public app: any, public vaultPath: string, public schemaPath: string, public templateFolder = '宇宙/创世/模板') {}
   async read(relative: string) {
     const target = await safeTarget(this.vaultPath, relative);
     const bytes = fs.readFileSync(target, 'utf8');

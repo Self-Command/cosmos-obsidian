@@ -5,6 +5,7 @@ import { failure, CosmosError } from '../errors.js';
 import { commandHelp, findOperation } from '../registry/index.js';
 import { validate } from '../registry/schema.js';
 import { Reviews } from '../workflows/review.js';
+import { Drafts } from '../workflows/drafts.js';
 export async function main(argv = process.argv.slice(2)) {
   const args = [...argv];
   let configFile: string | undefined;
@@ -13,7 +14,7 @@ export async function main(argv = process.argv.slice(2)) {
   const pretty = args.includes('--pretty');
   const clean = args.filter(x => x !== '--pretty' && x !== '--json');
   const option = (flag: string) => { const i = clean.indexOf(flag); if (i < 0) return undefined; const value = clean[i + 1]; if (!value || value.startsWith('--')) throw new CosmosError('INVALID_INPUT', flag + ' 需要值。'); clean.splice(i, 2); return value; };
-  const inputFile = option('--input'), reviewId = option('--review'), executionId = option('--execution');
+  const inputFile = option('--input'), reviewId = option('--review'), executionId = option('--execution'), draftId = option('--draft');
   const confirmed = clean.includes('--confirm'); if (confirmed) clean.splice(clean.indexOf('--confirm'), 1);
   let result;
   if (!clean.length || clean[0] === 'help' || clean[0] === '--help') result = { ok: true, version: 1, commands: commandHelp(), input: 'UTF-8 JSON stdin or --input file', config: 'COSMOS_CONFIG or --config binding.json' };
@@ -22,7 +23,7 @@ export async function main(argv = process.argv.slice(2)) {
     if (!operation) throw new CosmosError('INVALID_INPUT', '命令未实现或参数不合法；运行 cosmos help 查看已实现能力。');
     if (confirmed && operation.id !== 'review.commit') throw new CosmosError('INVALID_INPUT', '--confirm 仅用于提交。');
     const adapter = new Obsidian(await loadConfig(configFile)), reviews = new Reviews(adapter);
-    if (['task.preview','change.preview','query.tasks'].includes(operation.id)) {
+    if (['task.preview','entity.preview','draft.open','draft.preview','change.preview','query.tasks'].includes(operation.id)) {
       if (!inputFile) throw new CosmosError('INVALID_INPUT', '此命令需要 --input <file|->。');
       let bytes: string;
       if (inputFile === '-') { const chunks: Buffer[] = []; for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk)); bytes = Buffer.concat(chunks).toString('utf8'); }
@@ -31,7 +32,9 @@ export async function main(argv = process.argv.slice(2)) {
       try { input = JSON.parse(bytes.replace(/^\uFEFF/, '')); } catch { throw new CosmosError('INVALID_INPUT', '输入需要 UTF-8 JSON。'); }
       validate(operation.schema, input);
       if (operation.id === 'query.tasks') { const r = await adapter.request('query.tasks', input); if (r.state !== 'succeeded') throw new CosmosError(r.error?.code ?? 'QUERY_FAILED', r.error?.message ?? '查询失败。'); result = { ok: true, state: 'queried', tasks: r.result }; }
-      else result = await reviews.preview(operation.id === 'task.preview' ? 'task.prepare' : 'change.prepare', input);
+      else if (operation.id === 'draft.open') result = await new Drafts(adapter, reviews).open(input);
+      else if (operation.id === 'draft.preview') { if (!draftId) throw new CosmosError('INVALID_INPUT', '需要 --draft ID。'); result = await new Drafts(adapter, reviews).preview(draftId, input); }
+      else result = await reviews.preview(operation.id === 'task.preview' ? 'task.prepare' : operation.id === 'entity.preview' ? 'entity.preview' : 'change.prepare', input);
     } else if (operation.id === 'inspect.capabilities') result = { ok: true, state: 'inspected', capabilities: await adapter.inspect() };
     else if (operation.id.startsWith('review.')) {
       if (!reviewId) throw new CosmosError('INVALID_INPUT', '需要 --review ID。');

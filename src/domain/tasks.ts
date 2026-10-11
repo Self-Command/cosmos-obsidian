@@ -5,7 +5,7 @@ import { CosmosError } from '../errors.js';
 const texts = { type: 'array', items: text, uniqueItems: true };
 export const scheduleSchema = object({ date: text, time: text, timeZone: text, relativeDays: { type: 'integer' }, baseDate: text }, ['timeZone']);
 export const taskSchema = object({ title: text, status: text, schedule: scheduleSchema, due: scheduleSchema, estimateMinutes: { type: 'integer', minimum: 1, maximum: 525600 }, priority: { anyOf: [text, object({ rank: { enum: ['highest','lowest'] } }, ['rank'])] }, relations: object({ project: text, area: text }), tags: texts, contexts: texts, recurrence: text, details: { type: 'string' } }, ['title']);
-export const taskChangeSchema = object({ action: { enum: ['task.update','task.complete','task.uncomplete','task.instance.complete','task.instance.skip','task.occurrence'] }, path: text, patch: object({ status: text, priority: text, schedule: { anyOf: [scheduleSchema, { type: 'null' }] }, due: { anyOf: [scheduleSchema, { type: 'null' }] }, estimateMinutes: { type: 'integer', minimum: 1 }, recurrence: { type: ['string','null'] } }), date: text, completed: { type: 'boolean' } }, ['action','path']);
+export const taskChangeSchema = object({ action: { enum: ['task.update','task.complete','task.uncomplete','task.instance.complete','task.instance.skip'] }, path: text, patch: object({ status: text, priority: text, schedule: { anyOf: [scheduleSchema, { type: 'null' }] }, due: { anyOf: [scheduleSchema, { type: 'null' }] }, estimateMinutes: { type: 'integer', minimum: 1 }, recurrence: { type: ['string','null'] } }), date: text, completed: { type: 'boolean' } }, ['action','path']);
 export interface TaskInput { title: string; status?: string; schedule?: Schedule; due?: Schedule; estimateMinutes?: number; priority?: string | { rank: 'highest' | 'lowest' }; relations?: { project?: string; area?: string }; tags?: string[]; contexts?: string[]; recurrence?: string; details?: string }
 export function tags(value: string[] = []) {
   const normalized = [...new Set(value.map(x => x.replace(/^#/, '')))];
@@ -55,7 +55,7 @@ export function normalizeTask(raw: unknown, api: any, settings: any, now = new D
 export function normalizeTaskChange(raw: unknown) {
   const input = validate<any>(taskChangeSchema, raw); notePath(input.path);
   if (!input.path.endsWith('.md')) throw new CosmosError('INVALID_PATH', '任务目标需要 Markdown 笔记。');
-  if (['task.instance.complete','task.instance.skip','task.occurrence'].includes(input.action)) { if (!input.date) throw new CosmosError('NEEDS_INPUT', '实例操作需要明确日期。'); validDate(input.date); }
+  if (['task.instance.complete','task.instance.skip'].includes(input.action)) { if (!input.date) throw new CosmosError('NEEDS_INPUT', '实例操作需要明确日期。'); validDate(input.date); }
   if (input.action === 'task.update' && (!input.patch || !Object.keys(input.patch).length)) throw new CosmosError('NEEDS_INPUT', '任务修改需要非空 patch。');
   if (input.action !== 'task.update' && input.patch) throw new CosmosError('INVALID_INPUT', '此动作不接收 patch。');
   if (!['task.instance.complete','task.instance.skip'].includes(input.action) && input.completed !== undefined) throw new CosmosError('INVALID_INPUT', 'completed 只用于实例动作。');

@@ -22,6 +22,13 @@ foreach ($asset in @('main.js','manifest.json','styles.css')) {
 # Synthetic task configuration only; no production plugin settings are copied.
 New-Item -ItemType Directory -Force -Path (Join-Path $nativeVault '太阳/核聚变'),(Join-Path $nativeVault 'rules'),(Join-Path $nativeVault 'templates') | Out-Null
 @{version=3;common=@{};entities=@{task=@{folder='太阳/核聚变';folders=@('太阳/核聚变');allowSubfolders=$true}};actions=@();stageCategories=@{'太阳/核聚变'=@()}} | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $nativeVault 'rules/schema.json') -Encoding utf8NoBOM
+# Public, empty model contracts are the only vault fixtures. Native tests use the downloaded candidate.
+Copy-Item -LiteralPath 'tests/fixtures/model-v3/schema.json' -Destination (Join-Path $nativeVault 'rules/schema.json')
+foreach ($templateFile in Get-ChildItem -LiteralPath 'tests/fixtures/model-v3/templates' -File) { Copy-Item -LiteralPath $templateFile.FullName -Destination (Join-Path $nativeVault ('templates/'+$templateFile.Name)) }
+$modelFixture=Get-Content -LiteralPath 'tests/fixtures/model-v3/schema.json' -Raw -Encoding UTF8 | ConvertFrom-Json -Depth 70
+foreach ($entityProperty in $modelFixture.entities.PSObject.Properties) {
+  foreach ($modelFolder in @($entityProperty.Value.folder)+@($entityProperty.Value.folders)) { New-Item -ItemType Directory -Force -Path (Join-Path $nativeVault $modelFolder) | Out-Null }
+}
 @'
 ---
 type: task
@@ -41,7 +48,7 @@ route: "太阳/核聚变"
 {{details}}
 '@ | Set-Content -LiteralPath (Join-Path $nativeVault 'templates/任务.md') -Encoding utf8NoBOM
 @{tasksFolder='太阳/核聚变';taskFilenameFormat='title';storeTitleInFilename=$true;taskIdentificationMethod='property';taskPropertyName='type';taskPropertyValue='task';defaultTaskStatus='open';defaultTaskPriority='normal';fieldMapping=@{projects='project';dateCreated='created';dateModified='updated'};taskCreationDefaults=@{useBodyTemplate=$true;bodyTemplate='templates/任务.md';defaultRecurrence='none';defaultDueDate='none';defaultScheduledDate='none'};enableHttpApi=$false} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $nativeVault '.obsidian/plugins/tasknotes/data.json') -Encoding utf8NoBOM
-@{version=1;vaultPath=$nativeVault;vaultName='Cosmos Acceptance';cliPath=$cli;stateRoot=$nativeState;schemaPath='rules/schema.json';timeoutMs=20000} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $nativeRoot 'binding.json') -Encoding utf8NoBOM
+@{version=1;vaultPath=$nativeVault;vaultName='Cosmos Acceptance';cliPath=$cli;stateRoot=$nativeState;schemaPath='rules/schema.json';templateFolder='templates';timeoutMs=20000} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $nativeRoot 'binding.json') -Encoding utf8NoBOM
 "COSMOS_CONFIG=$(Join-Path $nativeRoot 'binding.json')" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 "COSMOS_NATIVE_ROOT=$nativeRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 Start-Process -FilePath $exe -ArgumentList @('--disable-gpu','--no-sandbox') -WindowStyle Hidden | Out-Null
