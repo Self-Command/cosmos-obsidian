@@ -20,7 +20,7 @@ export async function verifyPackage(root:string,sourceSha?:string) {
   const actual=await packageFiles(root),declared=Object.keys(manifest.files).sort();
   if(JSON.stringify(actual.filter(file=>!['manifest.json','connection.json'].includes(file)))!==JSON.stringify(declared))throw new CosmosError('PACKAGE_INVALID','发行文件缺失或包含未登记文件。');
   for(const [name,hash] of Object.entries(manifest.files)){
-    if(!/^[a-zA-Z0-9_./-]+$/.test(name)||name.split('/').some(part=>!part||part==='.'||part==='..')||!/^([a-f0-9]{64})$/.test(hash))throw new CosmosError('PACKAGE_INVALID','候选清单路径或指纹无效。');
+    if(!/^[a-zA-Z0-9_@./-]+$/.test(name)||name.split('/').some(part=>!part||part==='.'||part==='..')||!/^([a-f0-9]{64})$/.test(hash))throw new CosmosError('PACKAGE_INVALID','候选清单路径或指纹无效。');
     if(bytesHash(await fs.readFile(path.join(root,...name.split('/'))))!==hash)throw new CosmosError('PACKAGE_INVALID','候选文件字节变化。',{file:name});
   }
   for(const name of skillNames)if(!manifest.files['skills/'+name+'/SKILL.md']||!manifest.files['skills/'+name+'/scripts/cosmos.mjs'])throw new CosmosError('PACKAGE_INVALID','技能正文或执行入口缺失。',{name});

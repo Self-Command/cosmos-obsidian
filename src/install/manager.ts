@@ -30,7 +30,7 @@ export class Installer {
   async stage(rawRoot:string,rawConfig:string) {
     const manifest=await verifyPackage(this.packageRoot),configPath=await fs.realpath(rawConfig),config=await loadConfig(configPath),root=await absolute(rawRoot);
     if(within(config.vaultPath,root)||within(root,config.vaultPath))throw new CosmosError('INVALID_INPUT','安装目录必须位于业务库之外。');
-    await fs.mkdir(path.join(root,'releases'),{recursive:true});const release=path.join(root,'releases',manifest.sourceSha);
+    await fs.mkdir(path.join(root,'releases'),{recursive:true});if(await fs.realpath(path.join(root,'releases'))!==path.join(root,'releases'))throw new CosmosError('INSTALL_CONFLICT','发行目录不能链接到外部位置。');const release=path.join(root,'releases',manifest.sourceSha);
     if(await exists(release)){
       if(await fs.realpath(release)!==release)throw new CosmosError('INSTALL_CONFLICT','已有发行目录是外部链接。');
       await verifyPackage(release,manifest.sourceSha);const connection=JSON.parse(await fs.readFile(path.join(release,'connection.json'),'utf8'));
@@ -53,7 +53,7 @@ export class Installer {
     const id='i-'+randomUUID(),entries:Entry[]=[];
     for(const destination of destinations)for(const name of skillNames){const target=path.join(destination,name);entries.push({target,source:path.join(release,'skills',name),backup:path.join(destination,'.cosmos-backup-'+id+'-'+name),snapshot:await snapshot(target),phase:'pending'});}
     const plan:Installation={version:1,id,sourceSha:staged.sourceSha,release,bindingId:config.bindingId,configPath:staged.configPath,configHash:bytesHash(await fs.readFile(staged.configPath)),entries,state:'planned',hash:''};plan.hash=fingerprint(fixed(plan));
-    const target=path.join(root,'installation',id+'.json');await save(target,plan);
+    const installState=path.join(root,'installation');await fs.mkdir(installState,{recursive:true});if(await fs.realpath(installState)!==installState)throw new CosmosError('INSTALL_CONFLICT','安装状态目录不能链接到外部位置。');const target=path.join(installState,id+'.json');await save(target,plan);
     const preview=path.join(root,'installation',id+'.md');await fs.writeFile(preview,'# Cosmos 安装切换预览\n\n候选：'+plan.sourceSha+'\n\n'+entries.map(e=>'- '+e.target+' → '+e.source+'（原入口：'+e.snapshot.kind+'；恢复位置：'+e.backup+'）').join('\n')+'\n');
     return {ok:true,state:'review-ready',installationId:id,sourceSha:plan.sourceSha,preview,entries:entries.map(({phase,...entry})=>entry)};
   }
@@ -84,7 +84,7 @@ export class Installer {
     plan.state='switching';retain=true;await save(file,plan);
     try{
       for(const entry of plan.entries){
-        await fs.mkdir(path.dirname(entry.target),{recursive:true});
+        await fs.mkdir(path.dirname(entry.target),{recursive:true});if(await fs.realpath(path.dirname(entry.target))!==path.dirname(entry.target))throw new CosmosError('REVIEW_STALE','宿主发现目录的实际位置变化。');
         if(entry.snapshot.kind!=='absent'){entry.phase='backing-up';await save(file,plan);await fs.rename(entry.target,entry.backup);}
         entry.phase='backed-up';await save(file,plan);entry.phase='linking';await save(file,plan);
         await fs.symlink(entry.source,entry.target,process.platform==='win32'?'junction':'dir');entry.phase='linked';await save(file,plan);
