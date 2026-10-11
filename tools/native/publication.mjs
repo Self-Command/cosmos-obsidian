@@ -5,7 +5,7 @@ import path from 'node:path';
 const binding=JSON.parse(await readFile(process.env.COSMOS_CONFIG,'utf8')),results=[],suffix=process.env.GITHUB_RUN_ID+'-'+process.env.GITHUB_RUN_ATTEMPT;
 function run(executable,args,input){return new Promise((resolve,reject)=>{const child=spawn(executable,args,{shell:false,windowsHide:true});let out='',err='';child.stdout.on('data',b=>out+=b);child.stderr.on('data',b=>err+=b);child.on('error',reject);child.on('close',code=>resolve({code,out,err}));child.stdin.end(input===undefined?'':JSON.stringify(input));});}
 async function cli(args,input){const result=await run(process.execPath,['dist/cosmos.mjs',...args],input);try{return {code:result.code,...JSON.parse(result.out)};}catch{throw Error(result.out+result.err);}}
-async function native(code){const r=await run(binding.cliPath,['vault='+binding.vaultName,'eval','code='+code]);if(r.code)throw Error(r.out+r.err);return r;}
+async function native(code){const r=await run(binding.cliPath,['vault='+binding.vaultName,'eval','code=(async()=>{'+code+'})()']);if(r.code||/^Error:/m.test(r.out))throw Error(r.out+r.err);return r;}
 const preview=input=>cli(['publish','preview','--input','-'],input);
 async function commit(review){assert.equal(review.state,'review-ready',JSON.stringify(review));const result=await cli(['publish','commit','--review',review.reviewId,'--confirm']);assert.equal(result.state,'succeeded',JSON.stringify(result));assert.equal(result.verified,true);return result;}
 function content(contract){return {fields:Object.fromEntries(contract.fields.map(field=>{
@@ -69,6 +69,6 @@ try {
   for(let i=0;i<100;i++){withdrawal=await cli(['execution','verify','--execution',withdrawn.executionId]);if(withdrawal.steps?.[0]?.publication?.state==='withdrawn')break;await new Promise(r=>setTimeout(r,7000));}
   assert.equal(withdrawal.steps?.[0]?.publication?.state,'withdrawn',JSON.stringify(withdrawal));await commit(await preview({action:'refresh',batch:withdrawBatch.id}));results.push({case:'real-withdraw/deployment-and-page-404',passed:true});
 } finally {
-  await mkdir('artifacts',{recursive:true});await writeFile('artifacts/native-publication.json',JSON.stringify({sourceSha:process.env.GITHUB_SHA,runId:process.env.GITHUB_RUN_ID,candidate:JSON.parse(await readFile('dist/manifest.json','utf8')),mapping:{repository:'Self-Command/amytis → Self-Command/cosmos-obsidian-publication-fixture',urls:'https://self-command.github.io/amytis/* → https://self-command.github.io/cosmos-obsidian-publication-fixture/amytis/*',renderer:'d8099a39aa63f9dddace3fb2c32ce72daa6cae37',syntheticConfigBlob:'571e77bbe3d0a980d5bc1dbba7430dd921a011aa',testOnly:true},results},null,2));
+  await mkdir('artifacts',{recursive:true});await writeFile('artifacts/native-publication.json',JSON.stringify({sourceSha:process.env.GITHUB_SHA,runId:process.env.GITHUB_RUN_ID,candidate:JSON.parse(await readFile('dist/manifest.json','utf8')),mapping:{repository:'Self-Command/amytis → Self-Command/cosmos-obsidian-publication-fixture',urls:'https://self-command.github.io/amytis/* → https://self-command.github.io/cosmos-obsidian-publication-fixture/amytis/*',renderer:'d8099a39aa63f9dddace3fb2c32ce72daa6cae37',syntheticConfigBlob:'a047d5732bbe9c791626165d880d2b298474d56e',testOnly:true},results},null,2));
 }
 console.log(JSON.stringify({nativePublicationCases:results.length}));
