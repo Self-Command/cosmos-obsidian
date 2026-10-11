@@ -84,3 +84,5 @@ D3 I06–I07 的独立通过证据为 run 38156306481、候选 923a9fe3eddeb455b
 | P01 | [作者官方日期接口](https://github.com/liamcain/obsidian-daily-notes-interface)，npm 0.9.5，MIT | 当前 Periodic Notes 0.0.17 未导出 create 方法；接口读取相同插件设置并提供五个历史日期创建函数。作为明确锁定依赖打包；不复制旧技能周期实现 | native 日/周/月/季/年历史日期各自实际路径和正文读回；待 Actions |
 
 E02 的自动重名、创建时日期默认值及空模板不能直接作为批准方案：新适配器先拒绝冲突、要求真实事件日期并生成有内容的完整预览。服务本身不负责新 review 状态和用户批准。
+
+run 38158295947 的 build/双平台通过；真实实体和生命周期已运行，日期库加载 `obsidian` 失败。外部 CLI dispatcher 不享有插件内 require 的模块注入，新 `periodic-host.ts` 只将日期库所需的 Vault/TFile/TFolder 绑定为实际应用对象的原生构造器；路径规范化保持纯数据，库的失败 Notice 转为结构化错误。五种作者创建函数仍使用真实 app.vault 创建。不能将此 host facade 作为完整 Obsidian API 或合成原生验收。
