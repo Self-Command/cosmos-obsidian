@@ -12,7 +12,7 @@ import { entityAttributes } from '../domain/entities.js';
 import {tags} from '../domain/tasks.js';
 import {journalPublication,readPublicationJournal} from './publication-journal.js';
 import {createHash} from 'node:crypto';
-import {replaceFileSync} from '../state/atomic.js';
+import {replaceFile} from '../state/atomic.js';
 import type { EntityPreparation } from './entities.js';
 import type { Plan, Step } from '../workflows/types.js';
 import { CosmosError } from '../errors.js';
@@ -194,7 +194,7 @@ export async function executePublication(ctx:Context,step:Step) {
     for(const artifact of batch.artifacts)manifest.entries[artifact.id]={...manifest.entries[artifact.id],...artifact,blobSha:batch.blobs[artifact.id],transaction:batch.id,state:batch.state};
     const target=await safeTarget(ctx.vaultPath,manifestPath);fs.mkdirSync(path.dirname(target),{recursive:true});
     if((fs.existsSync(target)?fs.readFileSync(target,'utf8'):null)!==raw)throw new CosmosError('REVIEW_STALE','清单发生并发变化。');
-    const temp=target+'.cosmos-recover.tmp',fd=fs.openSync(temp,'w',0o600);try{fs.writeFileSync(fd,JSON.stringify(manifest,null,2)+'\n');fs.fsyncSync(fd);}finally{fs.closeSync(fd);}replaceFileSync(temp,target);
+    const temp=target+'.cosmos-recover.tmp',fd=fs.openSync(temp,'w',0o600);try{fs.writeFileSync(fd,JSON.stringify(manifest,null,2)+'\n');fs.fsyncSync(fd);}finally{fs.closeSync(fd);}await replaceFile(temp,target);
     await service.resume();return {batch:(await service.manifest()).transactions.find((t:any)=>t.id===batch.id)};
   }
   if(step.action==='publish.resume') {await service.resume();return {batch:(await service.manifest()).transactions.find((t:any)=>t.id===step.data.batch)};}
@@ -241,7 +241,8 @@ export async function verifyPublication(ctx:Context,step:Step,observed?:any) {
     const {verifyEntity}=await import('./entities.js');const local=await verifyEntity(ctx,step);
     const id=step.expected.properties!.site_id;return {...local,verified:local.verified&&manifest.entries[id]?.sourcePath===step.path};
   }
-  const batch=observed?.batch??manifest.transactions.find((t:any)=>t.id===step.data.batch);
+  const batchId=typeof step.data.batch==='string'?step.data.batch:step.data.batch?.id;
+  const batch=observed?.batch??manifest.transactions.find((t:any)=>t.id===batchId);
   if(!batch){
     if(observed?.journalExecution){try{
       const journal=readPublicationJournal(ctx,observed.journalExecution);

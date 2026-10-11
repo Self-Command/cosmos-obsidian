@@ -11,7 +11,7 @@ import { taskEnvironment } from '../domain/tasks.js';
 import { object, text, validate } from '../registry/schema.js';
 import type { Plan, StepResult } from '../workflows/types.js';
 import type { Review } from '../state/store.js';
-import {replaceFileSync} from '../state/atomic.js';
+import {replaceFile} from '../state/atomic.js';
 
 function assertStoredReview(review: Review, bindingId: string, root: string) {
   if (review.bindingId !== bindingId || fingerprint(review.plan) !== review.planHash || fingerprint(review.preview) !== review.previewHash || fingerprint(fs.readFileSync(path.join(root, 'previews', review.id + '.md'), 'utf8')) !== review.previewHash) throw new CosmosError('REVIEW_TAMPERED', '预览或方案不匹配。');
@@ -23,11 +23,12 @@ export async function dispatch(app: any, requestPath: string) {
   if (request.version !== 1 || !/^[eq]-[0-9a-f-]{36}$/.test(request.id) || request.receiptPath !== path.join(root, 'receipts', request.id + '.json')) throw new CosmosError('INVALID_INPUT', '运行时请求不合法。');
   const receiptPath = request.receiptPath;
   fs.mkdirSync(path.dirname(receiptPath), { recursive: true });
-  const save = (value: unknown) => { const temp = receiptPath + '.tmp'; const fd = fs.openSync(temp, 'w', 0o600); try { fs.writeFileSync(fd, JSON.stringify(value)); fs.fsyncSync(fd); } finally { fs.closeSync(fd); } replaceFileSync(temp, receiptPath); };
-  if (fs.existsSync(receiptPath)) return; // Never run an existing request again, including a started request.
+  const save = async (value: unknown) => { const temp = receiptPath + '.tmp'; const fd = fs.openSync(temp, 'w', 0o600); try { fs.writeFileSync(fd, JSON.stringify(value)); fs.fsyncSync(fd); } finally { fs.closeSync(fd); } await replaceFile(temp, receiptPath); };
   const base = { id: request.id, bindingId: request.bindingId };
   let mutationProgress: { phase: string; index: number; steps: StepResult[] } | undefined;
-  save({ ...base, state: 'started' });
+  // Exclusive creation claims the request before any asynchronous replacement or business action.
+  try { const fd=fs.openSync(receiptPath,'wx',0o600);try{fs.writeFileSync(fd,JSON.stringify({...base,state:'started'}));fs.fsyncSync(fd);}finally{fs.closeSync(fd);} }
+  catch(error){if((error as NodeJS.ErrnoException).code==='EEXIST')return;throw error;}
   try {
     const vaultPath = fs.realpathSync(app.vault.adapter.getBasePath());
     if (vaultPath !== fs.realpathSync(request.vaultPath) || request.bindingId !== fingerprint({ vaultPath, vaultName: app.vault.getName() })) throw new CosmosError('WRONG_VAULT', '运行中的库不匹配绑定。');
@@ -80,14 +81,14 @@ export async function dispatch(app: any, requestPath: string) {
           const step = plan.steps[index]!;
           try { await ctx.assertFresh({ ...plan, dependencies: currentDependencies }); }
           catch (error) { steps.push({index,action:step.action,path:step.path,state:'failed',verified:false,error:{code:error instanceof CosmosError?error.code:'PRECONDITION_FAILED',message:error instanceof Error?error.message:String(error)}});break; }
-          save({ ...base, state: 'started', phase: 'dispatching', index, steps });
+          await save({ ...base, state: 'started', phase: 'dispatching', index, steps });
           try {
             mutationProgress = { phase: 'dispatching', index, steps };
             const observed = await executeStep(ctx, step, request.id);
             const verification = await verifyStep(ctx, step, observed);
             steps.push({ index, action: step.action, path: step.path, state: verification.verified ? 'succeeded' : verification.uncertain?'uncertain':'failed', verified: verification.verified, observed, publication:verification.publication, error: verification.verified ? undefined : { code: 'VERIFICATION_FAILED', message: JSON.stringify(verification.differences) } });
             mutationProgress = { phase: 'readback', index, steps };
-            save({ ...base, state: 'started', phase: 'readback', index, steps });
+            await save({ ...base, state: 'started', phase: 'readback', index, steps });
             if (!verification.verified) break;
             const changed = new Set([step.path,step.source,...(step.data.links ?? []).map((link:any)=>link.path)]);
             currentDependencies = await Promise.all(currentDependencies.map(async dependency => {
@@ -130,10 +131,10 @@ export async function dispatch(app: any, requestPath: string) {
         }
       }
     } else throw new CosmosError('CAPABILITY_MISSING', '未登记此运行时能力。');
-    save({ ...base, state: 'succeeded', result });
+    await save({ ...base, state: 'succeeded', result });
   } catch (e) {
     const error = { code: e instanceof CosmosError ? e.code : 'RUNTIME_FAILED', message: e instanceof Error ? e.message : String(e), details: e instanceof CosmosError ? e.details : undefined };
     // A failed final receipt save must retain its mutation progress, never become proof of zero writes.
-    save(mutationProgress ? { ...base, state: 'started', ...mutationProgress, error } : { ...base, state: 'failed', error });
+    await save(mutationProgress ? { ...base, state: 'started', ...mutationProgress, error } : { ...base, state: 'failed', error });
   }
 }

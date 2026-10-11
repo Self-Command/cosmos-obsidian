@@ -88,7 +88,16 @@ try {
   await native('app.__cosmosFixtureRestoreManifest()');
   const originalBranch=uncertain.steps[0].publication.batch,originalCommit=uncertain.steps[0].publication.commit;
   const known=await cli(['execution','verify','--execution',uncertain.executionId]);assert.equal(known.state,'failed',JSON.stringify(known));assert.equal(known.steps[0].publication.batch,originalBranch);
-  const recovered=await commit(await preview({action:'recover',execution:uncertain.executionId}));assert.equal(recovered.steps[0].observed.batch.id,originalBranch);assert.equal(recovered.steps[0].observed.batch.commit,originalCommit);results.push({case:'real-manifest-save-failure/journal/recover-original-branch',passed:true,batch:originalBranch,commit:originalCommit});
+  const recoveryReview=await preview({action:'recover',execution:uncertain.executionId});assert.equal(recoveryReview.state,'review-ready',JSON.stringify(recoveryReview));
+  let recovered=await cli(['publish','commit','--review',recoveryReview.reviewId,'--confirm']);
+  // GitHub may reject an immediate merge while calculating the new PR's base. Read back the
+  // original batch first, then explicitly approve a new resume review; never repeat recovery/upload.
+  for(let attempt=0;recovered.state==='uncertain'&&attempt<3;attempt++){
+    const stopped=await cli(['execution','verify','--execution',recovered.executionId]);assert.equal(stopped.state,'succeeded',JSON.stringify(stopped));assert.equal(stopped.steps[0].publication.batch,originalBranch);
+    results.push({case:'real-merge-rejection/readback/new-approved-resume',passed:true,attempt,error:recovered.steps[0].error});
+    await new Promise(r=>setTimeout(r,2000));const next=await preview({action:'resume',batch:originalBranch});assert.equal(next.state,'review-ready',JSON.stringify(next));recovered=await cli(['publish','commit','--review',next.reviewId,'--confirm']);
+  }
+  assert.equal(recovered.state,'succeeded',JSON.stringify(recovered));assert.equal(recovered.steps[0].observed.batch.id,originalBranch);assert.equal(recovered.steps[0].observed.batch.commit,originalCommit);assert.equal(recovered.steps[0].observed.batch.state,'merged');results.push({case:'real-manifest-save-failure/journal/recover-original-branch',passed:true,batch:originalBranch,commit:originalCommit});
   let recoverLive;
   for(let i=0;i<100;i++){recoverLive=await cli(['execution','verify','--execution',recovered.executionId]);if(recoverLive.steps?.[0]?.publication?.state==='live')break;await new Promise(r=>setTimeout(r,7000));}
   assert.equal(recoverLive.steps?.[0]?.publication?.state,'live',JSON.stringify(recoverLive));await commit(await preview({action:'refresh',batch:originalBranch}));results.push({case:'real-journal-recovery/deploy/page-version',passed:true});

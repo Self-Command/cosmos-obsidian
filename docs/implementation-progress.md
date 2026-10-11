@@ -53,8 +53,12 @@
 - 该候选 CLI SHA256 `f70c2b45e1dd796eb7f96a952617498ce650496865e4bcd43d6462d31aedeff2`，runtime SHA256 `4421b5d63229f815dcacf303a4774308bd84f6801c17453cd1c3afd6e46774d4`；下载包和原生报告已核对。
 - 补充原生入链范围/改名后引用读回；运行时最终回执保存失败保留已派发进度，不能改为零写入失败证明。
 
-## D5：写作与发布（准备中）
+## D5：写作与发布（最终恢复候选验证中）
 
 - 已核对当前库内发布服务、适配器、传输与 Enveloppe 7.8.2 受控接口。沿用当前身份、范围、成员/大纲及批次语义。
 - 创建独立公开合成测试远端 `Self-Command/cosmos-obsidian-publication-fixture`。当前只有说明文件；正式 Amytis 内容未复制、未上传、未变更。
 - 后续测试只包含合成内容，保存真实上传、PR 合并、部署和页面验证证据，并明确请求/网址映射边界。D5 实现与验收尚未完成。
+- run [`38161665689`](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38161665689)，候选 `7eabf41562f0e596080aefdb4e8621d43091f225`：build、双平台、native、publication、stage-gate 全部通过。真实发布 16 个场景通过：中英文写作/副本/系列、取消/漂移、真实上传前 PR 创建失败、原分支恢复合并、部署/页面戳与目录收据、改名保留网址、撤稿后的真实页面 404。
+- run [`38162441137`](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38162441137)，候选 `c80345f8f365e4219c3607b7d591fc458c806316`：全形态 publication 21 场景、build、双平台通过；包含认知、随笔、专题、书籍和章节。native 单项失败：实际变更已成功，最终回执替换被 Windows 临时 EPERM 拒绝。保存原诊断，门禁未通过；新候选对仅状态文件替换增加最多 300ms 重试，不重发业务操作。
+- 新增库外远端派发日志及 recover：清单保存失败后核验原分支全部批准字节，单独审阅恢复并沿用原 branch/commit；复检为 GET-only。run 38162726734 与最新 38162844398 正在验证，不提前宣称闭合。
+- 当前合成渲染配置 blob `a047d5732bbe9c791626165d880d2b298474d56e`，其余固定渲染契约来自 `d8099a39aa63f9dddace3fb2c32ce72daa6cae37`；页面读取只在测试环境映射 `/cosmos-obsidian-publication-fixture/amytis/*`。所有实际 PR 为合成内容。
