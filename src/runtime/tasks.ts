@@ -45,7 +45,7 @@ export async function prepareTaskChange(ctx: Context, raw: unknown): Promise<Ste
       const mapped = key === 'schedule' ? 'scheduled' : key === 'estimateMinutes' ? 'timeEstimate' : key;
       let resolved: any = value;
       if (key === 'status' || key === 'priority') resolved = catalogValue(value as string, api.catalog[key === 'status' ? 'statuses' : 'priorities'](), key);
-      if (key === 'schedule' || key === 'due') resolved = value === null ? undefined : schedule(value as any);
+      if (key === 'schedule' || key === 'due') resolved = value === null ? null : schedule(value as any);
       data[mapped] = resolved;
       expected.properties![mapped] = resolved ?? null;
     }
@@ -62,7 +62,7 @@ export async function prepareTaskChange(ctx: Context, raw: unknown): Promise<Ste
     if (input.action !== 'task.occurrence') expected.properties![input.action === 'task.instance.complete' ? 'complete_instances' : 'skipped_instances'] = { date: input.date, included: input.completed };
   }
   if (input.action === 'task.update') {
-    const check = api.model.validatePatch(data);
+    const check = api.model.validatePatch(Object.fromEntries(Object.entries(data).map(([key, value]) => [key, value === null ? undefined : value])));
     if (!check.valid) throw new CosmosError('INVALID_INPUT', 'TaskNotes 模型拒绝修改。', { issues: check.issues });
   }
   return { action: input.action, path: input.path, data, expected };
@@ -77,7 +77,7 @@ export async function executeTask(ctx: Context, step: Step, executionId: string)
       task = await api.tasks.create(step.data, mutation);
       if (task.path !== step.path) throw new CosmosError('EXECUTION_PARTIAL', '插件生成了与方案不同的路径；记录实际文件，禁止重发。', { expected: step.path, actual: task.path }, 4);
       break;
-    case 'task.update': task = await api.tasks.update(step.path, step.data, mutation); break;
+    case 'task.update': task = await api.tasks.update(step.path, Object.fromEntries(Object.entries(step.data).map(([key, value]) => [key, value === null ? undefined : value])), mutation); break;
     case 'task.complete': task = await api.tasks.complete(step.path, { status: step.data.status }, mutation); break;
     case 'task.uncomplete': task = await api.tasks.uncomplete(step.path, { status: step.data.status }, mutation); break;
     case 'task.instance.complete':

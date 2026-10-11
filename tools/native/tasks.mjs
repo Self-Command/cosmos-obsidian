@@ -21,6 +21,21 @@ assert.equal((await readdir(path.dirname(target))).filter(x=>x.startsWith('验�
 results.push({case:'create/approval/readback/repeat',passed:true,executionId:commit.executionId});
 const completePreview=await cli(['change','preview','--input','-'],{actions:[{action:'task.complete',path:'太阳/核聚变/验收中文任务.md'}]});assert.equal(completePreview.state,'review-ready',JSON.stringify(completePreview));
 const complete=await cli(['review','commit','--review',completePreview.reviewId,'--confirm']);assert.equal(complete.state,'succeeded',JSON.stringify(complete));results.push({case:'complete-native-task',passed:true});
+const update=await cli(['change','preview','--input','-'],{actions:[{action:'task.update',path:'太阳/核聚变/验收中文任务.md',patch:{schedule:null,due:{date:'2026-10-14',timeZone:'Asia/Shanghai'},estimateMinutes:45}}]});assert.equal(update.state,'review-ready',JSON.stringify(update));
+const updated=await cli(['review','commit','--review',update.reviewId,'--confirm']);assert.equal(updated.state,'succeeded',JSON.stringify(updated));
+const query=await cli(['query','tasks','--input','-'],{title:'验收中文任务'});assert.equal(query.tasks.length,1);assert.equal(query.tasks[0].scheduled,undefined);assert.equal(query.tasks[0].due,'2026-10-14');
+const reopen=await cli(['change','preview','--input','-'],{actions:[{action:'task.uncomplete',path:'太阳/核聚变/验收中文任务.md'}]});assert.equal(reopen.state,'review-ready',JSON.stringify(reopen));assert.equal((await cli(['review','commit','--review',reopen.reviewId,'--confirm'])).state,'succeeded');results.push({case:'update-clear-dates/query/uncomplete',passed:true});
+// Simulate a lost outer result after the native receipt finished. Recovery must read the original receipt.
+const executionFile=path.join(binding.stateRoot,'executions',commit.executionId+'.json'),reviewFile=path.join(binding.stateRoot,'reviews',preview.reviewId+'.json');
+const savedExecution=JSON.parse(await readFile(executionFile,'utf8')),savedReview=JSON.parse(await readFile(reviewFile,'utf8'));
+// Verify the original create before a different authorized update changes its expected properties.
+const recoveryPreview=await cli(['task','preview','--input','-'],{...task,title:'恢复回执任务'});const recoveryCommit=await cli(['review','commit','--review',recoveryPreview.reviewId,'--confirm']);assert.equal(recoveryCommit.state,'succeeded',JSON.stringify(recoveryCommit));
+const recoveryExecutionFile=path.join(binding.stateRoot,'executions',recoveryCommit.executionId+'.json'),recoveryReviewFile=path.join(binding.stateRoot,'reviews',recoveryPreview.reviewId+'.json');
+const recoveryExecution=JSON.parse(await readFile(recoveryExecutionFile,'utf8')),recoveryReview=JSON.parse(await readFile(recoveryReviewFile,'utf8'));
+await writeFile(recoveryExecutionFile,JSON.stringify({...recoveryExecution,state:'uncertain',verified:false}));await writeFile(recoveryReviewFile,JSON.stringify({...recoveryReview,state:'uncertain'}));
+await writeFile(path.join(binding.stateRoot,'locks',recoveryExecution.bindingId+'.lock'),JSON.stringify({executionId:recoveryCommit.executionId}));
+assert.equal((await cli(['review','commit','--review',recoveryPreview.reviewId,'--confirm'])).state,'uncertain');
+const recovered=await cli(['execution','verify','--execution',recoveryCommit.executionId]);assert.equal(recovered.state,'succeeded',JSON.stringify(recovered));assert.equal((await readdir(path.join(binding.vaultPath,'太阳/核聚变'))).filter(x=>x.startsWith('恢复回执任务')).length,1);results.push({case:'native-receipt-recovery-no-redispatch',passed:true});
 const cancelPreview=await cli(['task','preview','--input','-'],{...task,title:'取消的任务'});assert.equal(cancelPreview.state,'review-ready');
 await cli(['review','cancel','--review',cancelPreview.reviewId]);const cancelled=await cli(['review','commit','--review',cancelPreview.reviewId,'--confirm']);assert.equal(cancelled.error.code,'INVALID_STATE');await assert.rejects(readFile(path.join(binding.vaultPath,'太阳/核聚变/取消的任务.md')));results.push({case:'cancel/resume-zero-write',passed:true});
 const stale=await cli(['task','preview','--input','-'],{...task,title:'过期任务'});await writeFile(path.join(binding.vaultPath,'templates/任务.md'),(await readFile(path.join(binding.vaultPath,'templates/任务.md'),'utf8'))+'\n<!-- changed -->');
@@ -29,5 +44,6 @@ const recurrence=await cli(['task','preview','--input','-'],{title:'每日任务
 const recurrenceCommit=await cli(['review','commit','--review',recurrence.reviewId,'--confirm']);assert.equal(recurrenceCommit.state,'succeeded',JSON.stringify(recurrenceCommit));
 const instance=await cli(['change','preview','--input','-'],{actions:[{action:'task.instance.complete',path:'太阳/核聚变/每日任务.md',date:'2026-10-12',completed:true}]});assert.equal(instance.state,'review-ready',JSON.stringify(instance));
 const instanceCommit=await cli(['review','commit','--review',instance.reviewId,'--confirm']);assert.equal(instanceCommit.state,'succeeded',JSON.stringify(instanceCommit));results.push({case:'recurring-native-instance',passed:true});
+const skip=await cli(['change','preview','--input','-'],{actions:[{action:'task.instance.skip',path:'太阳/核聚变/每日任务.md',date:'2026-10-13',completed:true}]});assert.equal(skip.state,'review-ready',JSON.stringify(skip));assert.equal((await cli(['review','commit','--review',skip.reviewId,'--confirm'])).state,'succeeded');results.push({case:'recurring-native-skip',passed:true});
 await mkdir('artifacts',{recursive:true});await writeFile('artifacts/native-tasks.json',JSON.stringify({sourceSha:process.env.GITHUB_SHA,results},null,2));
 console.log(JSON.stringify({nativeTasksPassed:results.length}));

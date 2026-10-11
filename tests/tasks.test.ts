@@ -62,4 +62,12 @@ describe('review execution state', () => {
     const verified=await s.reviews.verify(first.executionId!);expect(verified.state).toBe('succeeded');expect(s.writes()).toBe(1);
     const next=await s.reviews.preview('task.prepare',{});expect(next.state).toBe('review-ready');
   });
+  it('retains execution identity when saving the final result fails',async()=>{
+    const s=await service(),preview=await s.reviews.preview('task.prepare',{}),write=s.store.write.bind(s.store);
+    let injected=false;
+    s.store.write=async(kind,id,value:any)=>{if(kind==='executions'&&value.state==='succeeded'&&!injected){injected=true;throw Error('disk temporarily unavailable');}return write(kind,id,value);};
+    const first=await s.reviews.commit(preview.reviewId,true);expect(first.state).toBe('uncertain');expect(s.writes()).toBe(1);
+    const repeated=await s.reviews.commit(preview.reviewId,true);expect(repeated.executionId).toBe(first.executionId);expect(s.writes()).toBe(1);
+    expect((await s.reviews.verify(first.executionId!)).state).toBe('succeeded');expect(s.writes()).toBe(1);
+  });
 });
