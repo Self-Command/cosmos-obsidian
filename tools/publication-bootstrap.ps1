@@ -25,6 +25,7 @@ foreach($codeFile in Get-ChildItem -LiteralPath $source -File -Recurse) {
   }
 }
 $entries+=@{path='site.config.ts';mode='100644';type='blob';content=$siteText}
+$entries+=@{path='fixture-bun.d.ts';mode='100644';type='blob';content='/// <reference types="bun" />'}
 $entries+=@{path='content/posts/bootstrap.md';mode='100644';type='blob';content="---`ntitle: Synthetic bootstrap`ndate: '2026-10-01'`ntags: [acceptance]`n---`n`nThis is synthetic acceptance content.`n"}
 foreach($kind in @('notes','flows','series','books','en/posts','en/notes','en/flows','en/series','en/books')){$entries+=@{path="content/$kind/.gitkeep";mode='100644';type='blob';content=''}}
 $deploy=@'

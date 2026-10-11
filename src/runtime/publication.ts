@@ -78,7 +78,7 @@ export async function prepareWriting(ctx:Context,raw:unknown,bindingId:string):P
   const name=title(input.name),target=notePath(folder+'/'+name+'.md');await ctx.target(target);
   const v=input.values,variant=(v.role==='index'?'amytisIndex':v.kind==='book'?'amytisChapter':'amytisArticle')+(v.language==='en'?'En':'');
   const template=compileContent(ctx.schema.specialTemplates?.[variant]?.body??'');
-  const properties={...entityAttributes(ctx.schema,ctx.schema.entities.output,{tags:v.tags},folder,new Date()),...values(v,randomUUID())};
+  const properties:Record<string,any>={...entityAttributes(ctx.schema,ctx.schema.entities.output,{tags:v.tags},folder,new Date()),...values(v,randomUUID())};
   if(v.kind==='book'&&(v.role??'entry')==='entry')properties.site_kind='post';
   if(input.relations?.project)properties.project=[await ctx.relation(input.relations.project,'project')];
   if(input.relations?.area)properties.area=await ctx.relation(input.relations.area,'area');
