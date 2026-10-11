@@ -1,5 +1,5 @@
 export interface Dependency { path: string; hash: string | null; kind: 'file' | 'directory' | 'absent' }
 export interface Step { action: string; path: string; data: Record<string, any>; expected: { properties?: Record<string, any>; body?: string; absent?: boolean; sourceAbsent?: boolean }; source?: string }
-export interface Plan { version: 1; bindingId: string; steps: Step[]; dependencies: Dependency[]; environment: { tasknotes?: string; periodic?: string; links?: string; publication?: string; publicationDisk?: string }; warnings: string[] }
+export interface Plan { version: 1; bindingId: string; steps: Step[]; dependencies: Dependency[]; environment: { tasknotes?: string; periodic?: string; links?: string; publication?: string; publicationDisk?: string; publicationCatalog?:string }; warnings: string[] }
 export interface StepResult { index: number; action: string; path: string; state: 'succeeded' | 'failed' | 'uncertain'; verified: boolean; observed?: unknown; publication?: unknown; error?: { code: string; message: string } }
 export interface Execution { id: string; reviewId: string; bindingId: string; state: 'executing' | 'succeeded' | 'partial' | 'failed' | 'uncertain'; verified: boolean; steps: StepResult[]; startedAt: string; completedAt?: string; error?: unknown }

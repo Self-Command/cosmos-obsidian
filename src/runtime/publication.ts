@@ -44,7 +44,7 @@ async function track(ctx:Context, service:any, remote=false) {
   const absolute=await safeTarget(ctx.vaultPath,manifestPath);
   if(fs.existsSync(absolute))await ctx.read(manifestPath);else ctx.depend({path:manifestPath,kind:'absent',hash:null});
   const records=await service.records();
-  for(const r of records.filter((x:any)=>x.fm.site_target==='amytis'))await ctx.read(r.path);
+  ctx.environment.publicationCatalog=catalogFingerprint(records);
   if(remote){
     for(const relative of [pluginRoot+'/main.js','宇宙/演化/变更/amytis-implementation.json'])await ctx.read(relative);
     // data.json contains authentication; track only the policy fields in memory and on disk.
@@ -54,6 +54,11 @@ async function track(ctx:Context, service:any, remote=false) {
   }
   return records;
 }
+function catalogFingerprint(records:any[]) {
+  const keys=['type','source','site_target','site_id','site_locale','site_kind','site_role','site_slug','site_date','publish','site_members','site_outline','aliases'];
+  return fingerprint(records.filter(r=>r.fm.site_target==='amytis').map(r=>({path:r.path,properties:Object.fromEntries(keys.map(k=>[k,r.fm[k]]))})).sort((a,b)=>a.path.localeCompare(b.path)));
+}
+export async function publicationCatalog(ctx:Context){const {service}=await load(ctx);return catalogFingerprint(await service.records());}
 async function requirePublication(ctx:Context) {
   const p=ctx.app.plugins.plugins['obsidian-mkdocs-publisher'];
   if(p?.manifest?.version!=='7.8.2'||p.__amytisBridgeVersion!==1||!p.__amytisLoadedFingerprint)throw new CosmosError('CAPABILITY_MISSING','需要已加载的 Enveloppe 7.8.2 受控 bridge v1。',{},3);
@@ -133,6 +138,9 @@ export async function preparePublication(ctx:Context,raw:unknown,bindingId:strin
     if(!preview.valid)throw new CosmosError('INVALID_INPUT','发布预检失败。',{errors:preview.errors});
     // ArrayBuffer is normalized to byte arrays so persisted reviews retain exact attachment bytes.
     preview.assets=preview.assets.map((a:any)=>({...a,bytes:Array.from(new Uint8Array(a.bytes))}));
+    const used=new Set(preview.artifacts.flatMap((a:any)=>[a.id,...a.dependencies]));
+    preview.sourceHashes=Object.fromEntries(records.filter((r:any)=>used.has(r.fm.site_id)).map((r:any)=>[r.path,preview.sourceHashes[r.path]]));
+    for(const p of Object.keys(preview.sourceHashes))await ctx.read(p);
     for(const asset of preview.assets)if(asset.source&&ctx.app.vault.getAbstractFileByPath(asset.source))ctx.depend({path:asset.source,kind:'file',hash:(await import('../domain/identity.js')).bytesHash(fs.readFileSync(await safeTarget(ctx.vaultPath,asset.source)))});
     step={action:'publish.upload',path:manifestPath,data:{preview},expected:{}};
   } else if(input.action==='withdraw') {

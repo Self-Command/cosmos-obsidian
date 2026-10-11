@@ -37,6 +37,11 @@ describe('publication boundaries and local planning',()=>{
     expect(plan.dependencies.find(d=>d.path===p)?.kind).toBe('file');expect(plan.dependencies.some(d=>d.path==='.obsidian/amytis/publication.json'&&d.kind==='absent')).toBe(true);
     await writeFile(f.root+'/'+p,original+'Concurrent change');await expect(f.ctx().assertFresh(plan)).rejects.toThrow();
   });
+  it('keeps unrelated published prose independent but invalidates identity and membership drift',async()=>{
+    const f=await vault(),source='太阳/光球/文章/Source.md',other='太阳/光球/文章/Other.md';await f.seed(source,{});await f.seed(other,{site_target:'amytis',site_id:'other',site_locale:'zh',site_kind:'post',site_role:'entry',site_slug:'other',site_date:'2026-10-01',site_body:'marked',title:'Other',publish:false});
+    const plan=await preparePublication(f.ctx(),{action:'register',path:source,values:v()},'bound');const raw=await readFile(f.root+'/'+other,'utf8');await writeFile(f.root+'/'+other,raw+'\nUnrelated prose');await expect(f.ctx().assertFresh(plan)).resolves.toBeUndefined();
+    const note=splitNote(raw);await writeFile(f.root+'/'+other,noteBytes({...note.properties,site_slug:'changed'},note.body));await expect(f.ctx().assertFresh(plan)).rejects.toThrow();
+  });
   it('rejects incomplete public markers, illegal kinds, dates and duplicate stable identities',async()=>{
     const f=await vault(),p='太阳/光球/文章/Source.md';await f.seed(p,{});
     await expect(preparePublication(f.ctx(),{action:'register',path:p,values:v({date:'2026-02-30'})},'bound')).rejects.toThrow();

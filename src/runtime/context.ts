@@ -124,5 +124,6 @@ export class Context {
       const {publicationEnvironment,policyDisk}=await import('./publication.js');
       if(publicationEnvironment(this.app)!==plan.environment.publication||await policyDisk(this)!==plan.environment.publicationDisk)throw new CosmosError('REVIEW_STALE','发布客户端或目标政策已变化。');
     }
+    if(plan.environment.publicationCatalog&&(await (await import('./publication.js')).publicationCatalog(this))!==plan.environment.publicationCatalog)throw new CosmosError('REVIEW_STALE','发布身份、语言或组织登记已变化。');
   }
 }
