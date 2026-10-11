@@ -2,6 +2,7 @@ import { object, text } from '../registry/schema.js';
 import { taskSchema, taskChangeSchema } from './tasks.js';
 import { entitySchema } from './entities.js';
 import { journalSchema } from './periods.js';
+import { writingSchema } from './publication.js';
 const creation = (schema: any, action: string) => ({ ...schema, properties: { ...schema.properties, action: { const: action } }, required: [...schema.required,'action'] });
 export const evolveSchema = object({ action: { const: 'entity.evolve' }, path: text, transition: text, name: text, folder: text, category: text, attributes: entitySchema.properties.attributes, relations: entitySchema.properties.relations, tags: entitySchema.properties.tags, content: { type: 'object' }, evidence: object({ url: text, publishedDate: text, description: text }, ['url','publishedDate','description']) }, ['action','path','transition']);
 export const fileChangeSchema = { oneOf: [
@@ -13,4 +14,4 @@ export const fileChangeSchema = { oneOf: [
 ] };
 export const changeItemSchema = { oneOf: [taskChangeSchema, creation(taskSchema, 'task.create'), creation(entitySchema, 'entity.create'), evolveSchema, fileChangeSchema, journalSchema] };
 export const changeSchema = object({ actions: { type: 'array', minItems: 1, maxItems: 50, items: changeItemSchema } }, ['actions']);
-export const draftSchema = { oneOf: [entitySchema, evolveSchema, journalSchema] };
+export const draftSchema = { oneOf: [entitySchema, evolveSchema, journalSchema, writingSchema] };

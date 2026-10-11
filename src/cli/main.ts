@@ -21,9 +21,9 @@ export async function main(argv = process.argv.slice(2)) {
   else {
     const operation = findOperation(clean.join(' '));
     if (!operation) throw new CosmosError('INVALID_INPUT', '命令未实现或参数不合法；运行 cosmos help 查看已实现能力。');
-    if (confirmed && operation.id !== 'review.commit') throw new CosmosError('INVALID_INPUT', '--confirm 仅用于提交。');
+    if (confirmed && !['review.commit','publish.commit'].includes(operation.id)) throw new CosmosError('INVALID_INPUT', '--confirm 仅用于提交。');
     const adapter = new Obsidian(await loadConfig(configFile)), reviews = new Reviews(adapter);
-    if (['task.preview','entity.preview','draft.open','draft.preview','change.preview','query.tasks','query.notes','query.actions'].includes(operation.id)) {
+    if (['task.preview','entity.preview','draft.open','draft.preview','change.preview','publish.preview','query.publication','query.tasks','query.notes','query.actions'].includes(operation.id)) {
       if (!inputFile) throw new CosmosError('INVALID_INPUT', '此命令需要 --input <file|->。');
       let bytes: string;
       if (inputFile === '-') { const chunks: Buffer[] = []; for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk)); bytes = Buffer.concat(chunks).toString('utf8'); }
@@ -34,9 +34,9 @@ export async function main(argv = process.argv.slice(2)) {
       if (operation.id.startsWith('query.')) { const r = await adapter.request(operation.id, input); if (r.state !== 'succeeded') throw new CosmosError(r.error?.code ?? 'QUERY_FAILED', r.error?.message ?? '查询失败。', r.error?.details); result = { ok: true, state: 'queried', [operation.id.slice(6)]: r.result }; }
       else if (operation.id === 'draft.open') result = await new Drafts(adapter, reviews).open(input);
       else if (operation.id === 'draft.preview') { if (!draftId) throw new CosmosError('INVALID_INPUT', '需要 --draft ID。'); result = await new Drafts(adapter, reviews).preview(draftId, input); }
-      else result = await reviews.preview(operation.id === 'task.preview' ? 'task.prepare' : operation.id === 'entity.preview' ? 'entity.preview' : 'change.prepare', input);
+      else result = await reviews.preview(operation.id === 'task.preview' ? 'task.prepare' : operation.id === 'entity.preview' ? 'entity.preview' : operation.id==='publish.preview'?'publish.prepare':'change.prepare', input);
     } else if (operation.id === 'inspect.capabilities') result = { ok: true, state: 'inspected', capabilities: await adapter.inspect() };
-    else if (operation.id.startsWith('review.')) {
+    else if (operation.id.startsWith('review.')||operation.id==='publish.commit') {
       if (!reviewId) throw new CosmosError('INVALID_INPUT', '需要 --review ID。');
       result = operation.id === 'review.show' ? await reviews.show(reviewId) : operation.id === 'review.cancel' ? await reviews.cancel(reviewId) : await reviews.commit(reviewId, confirmed);
     } else {

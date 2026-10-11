@@ -42,10 +42,19 @@
 - 原生新增 4 个场景组：长游记修订/落盘/恢复、普通实体取消、草稿模板漂移、书籍研读实际模板选择；完整模板文件/内联模板契约和非法正文在双平台检查。
 - 该候选 CLI SHA256 `def4d21ac826b2c79f7d500d8140818ef37c3091db38e5fccb72c05236a2474e`，runtime SHA256 `d7cd20595bb3a8afce99ce240784485daeec4ec641ed593152d56eda819ec091`。
 
-## D4：业务扩展（实施中）
+## D4：业务扩展
 
 - 统一批量方案可创建普通实体与 TaskNotes 任务，代码解析本方案中新建项目的关系。
 - 当前合法生命周期、七天归档由保留的库内 system-engine 服务判定并执行；新代码绑定服务/来源/模板，保留原文顺序，填写实际缺少章节。
 - 普通正文唯一片段修改、关系、改名、同阶段移动和系统回收使用 Obsidian 服务；改名范围包含实际入链并核验新目标。
 - 日周月季年采用作者的 `obsidian-daily-notes-interface 0.9.5`，读取已装 Periodic Notes 设置，分别调用五个实际创建函数。兼容目标为当前 0.0.17；未修改用户插件。
-- 新 D4 原生测试覆盖 18 类实体的服务职责、11 个已登记生命周期、统一项目/任务、五种历史周期及文件边界；目前候选待 Actions 核验。
+- run [`38158626259`](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38158626259)，候选 `58e50b5e41d842cbd0837289a7155711670973b1`：所有 jobs success，闭合五种实际日期接口。
+- 最新 run [`38158807169`](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38158807169)，候选 `e0512cee993ccba8b4f117d490cdeef5a8a77a1a`：build、两平台 foundation、native、stage-gate 全部 success。原生业务报告 34 个场景全部通过；此前任务/实体报告同一候选再次通过。
+- 该候选 CLI SHA256 `f70c2b45e1dd796eb7f96a952617498ce650496865e4bcd43d6462d31aedeff2`，runtime SHA256 `4421b5d63229f815dcacf303a4774308bd84f6801c17453cd1c3afd6e46774d4`；下载包和原生报告已核对。
+- 补充原生入链范围/改名后引用读回；运行时最终回执保存失败保留已派发进度，不能改为零写入失败证明。
+
+## D5：写作与发布（准备中）
+
+- 已核对当前库内发布服务、适配器、传输与 Enveloppe 7.8.2 受控接口。沿用当前身份、范围、成员/大纲及批次语义。
+- 创建独立公开合成测试远端 `Self-Command/cosmos-obsidian-publication-fixture`。当前只有说明文件；正式 Amytis 内容未复制、未上传、未变更。
+- 后续测试只包含合成内容，保存真实上传、PR 合并、部署和页面验证证据，并明确请求/网址映射边界。D5 实现与验收尚未完成。

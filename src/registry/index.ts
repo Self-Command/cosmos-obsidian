@@ -3,8 +3,12 @@ import { taskSchema, taskChangeSchema } from '../domain/tasks.js';
 import { entitySchema } from '../domain/entities.js';
 import { changeSchema, draftSchema } from '../domain/changes.js';
 import { notesQuerySchema, actionsQuerySchema } from '../runtime/queries.js';
+import {publicationSchema} from '../domain/publication.js';
 export interface Operation { id: string; command: string; effect: 'read' | 'preview' | 'write' | 'state'; schema: object; capabilities: string[]; description: string }
 export const registry: Operation[] = [
+  {id:'publish.preview',command:'publish preview',effect:'preview',schema:publicationSchema,capabilities:[],description:'预览公开副本、身份/语言/组织、上传、批次恢复/刷新或撤稿。'},
+  {id:'publish.commit',command:'publish commit',effect:'write',schema:object({}),capabilities:[],description:'批准后提交原发布方案。'},
+  {id:'query.publication',command:'query publication',effect:'read',schema:object({}),capabilities:[],description:'读取当前公开候选与持久化批次。'},
   { id: 'inspect.capabilities', command: 'inspect capabilities', effect: 'read', schema: object({}), capabilities: [], description: '查询当前绑定库与运行时能力。' },
   { id: 'task.preview', command: 'task preview', effect: 'preview', schema: taskSchema, capabilities: ['tasks.write'], description: '按实际规则和 TaskNotes 映射预览任务创建。' },
   { id: 'entity.preview', command: 'entity preview', effect: 'preview', schema: entitySchema, capabilities: [], description: '根据实际模板和完整内容预览普通实体创建。' },

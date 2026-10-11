@@ -6,6 +6,10 @@ import { Obsidian, type Receipt } from '../adapters/obsidian.js';
 import type { Plan, Execution } from './types.js';
 import { noteBytes } from '../templates/markdown.js';
 export function previewMarkdown(plan: Plan) {
+  if(plan.steps.length===1&&plan.steps[0]!.action==='publish.upload') {
+    const p=plan.steps[0]!.data.preview;
+    return '# Cosmos 完整发布预览\n\n目标：Amytis（受控 Enveloppe 配置）\n\n'+p.artifacts.map((a:any)=>'## '+a.path+'\n\n身份：'+a.id+'\n\n网址：'+a.url+'\n\n语言：'+a.locale+'\n\n归属：'+(a.parent??'独立内容')+'\n\n'+(a.oldPath?'迁移来源：'+a.oldPath+'\n\n':'')+'完整远端正文：\n\n'+a.content).join('\n\n')+'\n\n附件：\n'+p.assets.map((a:any)=>'- '+a.source+' → '+a.path+'（SHA256 '+a.hash+'，'+a.bytes.length+' bytes）').join('\n')+'\n\n依赖：\n'+plan.dependencies.map(d=>'- '+d.path).join('\n')+'\n\n'+plan.warnings.join('\n');
+  }
   return '# Cosmos 完整变更预览\n\n' + plan.steps.map((step, index) => `## ${index + 1}. ${step.action}\n\n目标：${step.path}\n\n` + (step.source ? '来源：' + step.source + '\n\n' : '') + (step.expected.absent ? '回收到系统废纸篓，实际回收后核对来源已移出。\n\n原文：\n\n' + noteBytes(step.data.originalProperties,step.data.originalBody) : step.expected.body !== undefined ? noteBytes(step.expected.properties ?? {}, step.expected.body) : '变更：\n\n' + JSON.stringify(step.data, null, 2)) + (step.data.links?.length ? '\n\n引用更新（Obsidian 原生改名服务）：\n' + step.data.links.map((link:any) => '- ' + link.path + '：' + link.originalLinks.join('、') + ' → ' + step.path.replace(/\.md$/,'') + '（' + link.count + '处）').join('\n') : '')).join('\n\n') + '\n\n依赖：\n' + plan.dependencies.map(x => '- ' + x.path + '（' + x.kind + '）').join('\n') + '\n' + plan.warnings.map(x => '- ' + x).join('\n');
 }
 export class Reviews {

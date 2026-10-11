@@ -9,6 +9,7 @@ import { taskEnvironment } from '../domain/tasks.js';
 import type { Plan, Step } from '../workflows/types.js';
 import { CosmosError } from '../errors.js';
 export async function prepareDraft(ctx: Context, input: any, bindingId: string): Promise<EntityPreparation> {
+  if (input.action === 'writing.create') return (await import('./publication.js')).prepareWriting(ctx,input,bindingId);
   if (input.action === 'entity.evolve') return prepareEvolution(ctx, input, bindingId);
   if (input.action === 'journal.create') return (await import('./periods.js')).prepareJournal(ctx, input, bindingId);
   return prepareEntity(ctx, input, bindingId);
@@ -36,10 +37,11 @@ export async function prepareChanges(ctx: Context, raw: unknown, bindingId: stri
   return { version: 1, bindingId, steps, dependencies: ctx.dependencies, environment: { ...environment, ...ctx.environment }, warnings: [...new Set(warnings)] };
 }
 export async function executeStep(ctx: Context, step: Step, executionId: string) {
+  if(step.action.startsWith('publish.')||step.action==='writing.create')return (await import('./publication.js')).executePublication(ctx,step);
   if (step.action.startsWith('task.')) return executeTask(ctx, step, executionId);
   if (step.action === 'entity.evolve') return executeEvolution(ctx, step);
   if (step.action === 'journal.create') return (await import('./periods.js')).executeJournal(ctx, step);
   if (step.action === 'entity.create') return executeEntity(ctx, step);
   return executeFileChange(ctx, step);
 }
-export const verifyStep = (ctx: Context, step: Step, observed?: any) => step.action.startsWith('task.') ? verifyTask(ctx, step, observed) : verifyEntity(ctx, step);
+export const verifyStep = async (ctx: Context, step: Step, observed?: any):Promise<any> => step.action.startsWith('publish.')||step.action==='writing.create'?(await import('./publication.js')).verifyPublication(ctx,step,observed):step.action.startsWith('task.') ? verifyTask(ctx, step, observed) : verifyEntity(ctx, step);

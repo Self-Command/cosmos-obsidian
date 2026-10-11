@@ -38,6 +38,8 @@ export async function dispatch(app: any, requestPath: string) {
       const settings = snapshot && Object.fromEntries(['tasksFolder','taskFilenameFormat','customFilenameTemplate','storeTitleInFilename','defaultTaskStatus','defaultTaskPriority','taskCreationDefaults','fieldMapping','userFields','taskIdentificationMethod','taskTag','taskPropertyName','taskPropertyValue','archiveFolder','excludedFolders'].map(key => [key, snapshot[key]]));
       result = { vaultName: app.vault.getName(), bindingId: request.bindingId, electron: process.versions.electron, tasknotes: tasknotes ? { version: tasknotes.manifest.version, apiVersion: api?.apiVersion, capabilities: ['tasks.read','tasks.write','model.read','model.validate','catalog.read','settings.snapshot','recurring.write','recurring.materialize'].filter(x => api?.hasCapability(x)), statuses: api?.catalog.statuses(), priorities: api?.catalog.priorities(), fields: api?.catalog.fields(), model: api?.model.config(), settings } : null, periodic: app.plugins.plugins['periodic-notes']?.manifest.version };
     } else if (request.action === 'task.prepare') result = await prepareTask(ctx, request.input, request.bindingId);
+    else if(request.action==='publish.prepare')result=await (await import('./publication.js')).preparePublication(ctx,request.input,request.bindingId);
+    else if(request.action==='query.publication')result=await (await import('./publication.js')).queryPublication(ctx);
     else if (request.action === 'entity.prepare') result = await prepareEntity(ctx, request.input, request.bindingId);
     else if (request.action === 'draft.prepare') result = await prepareDraft(ctx, request.input, request.bindingId);
     else if (request.action === 'entity.preview') {
@@ -79,7 +81,7 @@ export async function dispatch(app: any, requestPath: string) {
             mutationProgress = { phase: 'dispatching', index, steps };
             const observed = await executeStep(ctx, step, request.id);
             const verification = await verifyStep(ctx, step, observed);
-            steps.push({ index, action: step.action, path: step.path, state: verification.verified ? 'succeeded' : 'failed', verified: verification.verified, observed, error: verification.verified ? undefined : { code: 'VERIFICATION_FAILED', message: JSON.stringify(verification.differences) } });
+            steps.push({ index, action: step.action, path: step.path, state: verification.verified ? 'succeeded' : 'failed', verified: verification.verified, observed, publication:verification.publication, error: verification.verified ? undefined : { code: 'VERIFICATION_FAILED', message: JSON.stringify(verification.differences) } });
             mutationProgress = { phase: 'readback', index, steps };
             save({ ...base, state: 'started', phase: 'readback', index, steps });
             if (!verification.verified) break;
@@ -115,7 +117,7 @@ export async function dispatch(app: any, requestPath: string) {
           for (let index = 0; index < count; index++) {
             const step = plan.steps[index]!, observed = previous[index]?.observed;
             const verification = await verifyStep(ctx, step, observed);
-            steps.push({ index, action: step.action, path: step.path, state: verification.verified ? 'succeeded' : 'uncertain', verified: verification.verified, observed });
+            steps.push({ index, action: step.action, path: step.path, state: verification.verified ? 'succeeded' : 'uncertain', verified: verification.verified, observed,publication:verification.publication });
           }
           const all = steps.length === plan.steps.length && steps.every(x => x.verified);
           const final = prior.state !== 'started' && !steps.some(x => x.state === 'uncertain');

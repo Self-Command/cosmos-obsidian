@@ -120,5 +120,9 @@ export class Context {
     if (plan.environment.tasknotes) { const { plugin, api, settings } = this.tasknotes(); if (taskEnvironment(api, settings, plugin.manifest.version) !== plan.environment.tasknotes) throw new CosmosError('REVIEW_STALE', 'TaskNotes 的字段、默认值或版本已变化。'); }
     if (plan.environment.periodic && periodEnvironment(this.periodic()) !== plan.environment.periodic) throw new CosmosError('REVIEW_STALE', '周期插件版本或设置已变化。');
     if (plan.environment.links && fingerprint(this.linkEnvironment()) !== plan.environment.links) throw new CosmosError('REVIEW_STALE', 'Obsidian 链接更新设置已变化。');
+    if (plan.environment.publication || plan.environment.publicationDisk) {
+      const {publicationEnvironment,policyDisk}=await import('./publication.js');
+      if(publicationEnvironment(this.app)!==plan.environment.publication||await policyDisk(this)!==plan.environment.publicationDisk)throw new CosmosError('REVIEW_STALE','发布客户端或目标政策已变化。');
+    }
   }
 }

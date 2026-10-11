@@ -28,7 +28,8 @@ export async function fillEntity(ctx: Context, preparation: EntityPreparation, c
   await ctx.assertFresh(preparation.plan);
   const body = renderContent(preparation.template, preparation.title, content);
   const finalBody = [preparation.appendTo === undefined ? body : [preparation.appendTo, body.replace(/^# [^\n]+\s*/, '')].filter(Boolean).join('\n\n'), preparation.suffix].filter(Boolean).join('\n\n');
-  return { ...preparation.plan, steps: preparation.plan.steps.map(step => ({ ...step, expected: { ...step.expected, body: finalBody } })) };
+  const plan={ ...preparation.plan, steps: preparation.plan.steps.map(step => ({ ...step, expected: { ...step.expected, body: finalBody } })) };
+  return (await import('./publication.js')).validateWriting(ctx,plan);
 }
 export async function executeEntity(ctx: Context, step: Step) {
   if (step.action !== 'entity.create') throw new CosmosError('CAPABILITY_MISSING', '实体动作没有登记。', {}, 3);

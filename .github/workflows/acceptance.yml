@@ -69,11 +69,35 @@ jobs:
         with: { name: native-environment, path: artifacts/, if-no-files-found: error }
   stage-gate:
     if: always()
-    needs: [build, foundation, native]
+    needs: [build, foundation, native, publication]
     runs-on: ubuntu-latest
     steps:
       - name: Require every implemented stage job to pass
         env:
           RESULTS: ${{ toJSON(needs) }}
         run: |
-          node -e 'const n=JSON.parse(process.env.RESULTS);if(Object.values(n).some(x=>x.result!=="success"))process.exit(1);console.log("D1–D4 implementation checks passed; not a release gate.")'
+          node -e 'const n=JSON.parse(process.env.RESULTS);if(Object.values(n).some(x=>x.result!=="success"))process.exit(1);console.log("D1–D5 implementation checks passed; not a release gate.")'
+  publication:
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 35
+    concurrency: {group: synthetic-publication, cancel-in-progress: false}
+    env:
+      PUBLICATION_TOKEN: ${{ secrets.PUBLICATION_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '24.21.0'}
+      - uses: actions/download-artifact@v4
+        with: {name: cosmos-candidate, path: dist/}
+      - run: node tools/verify-package.mjs
+      - shell: pwsh
+        run: ./tools/native/setup.ps1
+      - run: node tools/native/probe.mjs
+      - shell: pwsh
+        run: ./tools/native/publication-setup.ps1
+      - run: node tools/native/publication.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: native-publication, path: artifacts/, if-no-files-found: error}

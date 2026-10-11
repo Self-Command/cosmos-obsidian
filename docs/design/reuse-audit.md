@@ -86,3 +86,15 @@ D3 I06–I07 的独立通过证据为 run 38156306481、候选 923a9fe3eddeb455b
 E02 的自动重名、创建时日期默认值及空模板不能直接作为批准方案：新适配器先拒绝冲突、要求真实事件日期并生成有内容的完整预览。服务本身不负责新 review 状态和用户批准。
 
 run 38158295947 的 build/双平台通过；真实实体和生命周期已运行，日期库加载 `obsidian` 失败。外部 CLI dispatcher 不享有插件内 require 的模块注入，新 `periodic-host.ts` 只将日期库所需的 Vault/TFile/TFolder 绑定为实际应用对象的原生构造器；路径规范化保持纯数据，库的失败 Notice 转为结构化错误。五种作者创建函数仍使用真实 app.vault 创建。不能将此 host facade 作为完整 Obsidian API 或合成原生验收。
+
+E02/E03/P01 独立验证闭合于 run 38158807169、候选 e0512cee993ccba8b4f117d490cdeef5a8a77a1a，34 个真实原生业务场景全部通过；双平台领域和状态场景同时通过。五个历史周期分别使用作者接口的 createDailyNote/createWeeklyNote/createMonthlyNote/createQuarterlyNote/createYearlyNote，入链改名另作实际 Obsidian 验证。
+
+## D5 发布环境服务采用（候选待验证）
+
+| ID | 来源/具体范围 | 判断与改造 | 独立验证 |
+| --- | --- | --- | --- |
+| E04 | 当前库 publish-service.cjs（SHA256 75fb169bcaff22abd416a5c1c303989a28aba6292c77c3d7d7a961b8bba1ab54）、publish-adapter.cjs（50212e943c2a441782384447e834e955a1d9bbe6c833376e25a6fcbf826e4d3b）、publish-transport.cjs（807eba3d671b5fb6eedfd2976b64d9cd5f52ee45a1161d02cdc261559f713f3d）、publish-contract.json（9f4151f36be0fd53ad2a4a44c9f91efaa09605e3ee5bd0456e185c2ead544fb8） | 它们是保留的库内环境服务；不进入发行包。身份/语言、公开范围、成员与大纲、受控 Octokit 和批次恢复与当前网站契约一致。新适配器固定依赖与许可，正文/附件生成完整预览；ArrayBuffer 转字节列表后持久化。库内 register/create 的先写行为不能用于预览，新代码纯规划后在批准时执行。 | 新 publication.test.ts 与独立原生 publication job，尚未运行 |
+| E05 | 当前 Enveloppe 7.8.2 受控 bridge v1（tests/fixtures/model-v3/services/enveloppe-amytis-bridge.cjs） | 保留现有受控客户端、加载指纹及配置政策；新验证器只容许 GET，阻止复检触发上传或恢复合并。凭据不写入方案或报告，仅读取公开政策值。 | 实际官方插件 + 当前 bridge；独立测试映射只重定向固定 owner/repo 和页面读取，注入一次 PR 创建前网络失败，尚待 Actions |
+| P02 | 网站公开渲染源码 Self-Command/amytis，固定 d8099a39aa63f9dddace3fb2c32ce72daa6cae37 | 只复制代码、默认通用字体/图标与构建依赖到合成远端；排除生产 content/imports、site.config.ts、文档及测试内容。使用示例产生合成配置，实际 blob b8b08f4f9014b341e423f2c61fc458141a3aac7d，测试契约单独固定它；其余受保护 renderer blobs 保持原值。 | Self-Command/cosmos-obsidian-publication-fixture 的真实构建/Pages 部署；首轮发现二进制误按文本上传，已改为 base64 blobs，修复待重新验证 |
+
+测试页面映射为 `/cosmos-obsidian-publication-fixture/amytis/*`，原始导出仍保留规范 `/amytis/*`；它验证真实渲染、版本戳、成员与附件，不代表正式站导航或生产部署。正式 Amytis 内容和配置未被修改。网络结果未知保留 execution 和批次，不按超时自动重新上传。
