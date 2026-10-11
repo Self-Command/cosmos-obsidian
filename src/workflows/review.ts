@@ -6,7 +6,7 @@ import { Obsidian, type Receipt } from '../adapters/obsidian.js';
 import type { Plan, Execution } from './types.js';
 import { noteBytes } from '../templates/markdown.js';
 export function previewMarkdown(plan: Plan) {
-  return '# Cosmos 完整变更预览\n\n' + plan.steps.map((step, index) => `## ${index + 1}. ${step.action}\n\n目标：${step.path}\n\n` + (step.source ? '来源：' + step.source + '\n\n' : '') + (step.expected.body !== undefined ? noteBytes(step.expected.properties ?? {}, step.expected.body) : '变更：\n\n' + JSON.stringify(step.data, null, 2))).join('\n\n') + '\n\n依赖：\n' + plan.dependencies.map(x => '- ' + x.path + '（' + x.kind + '）').join('\n') + '\n' + plan.warnings.map(x => '- ' + x).join('\n');
+  return '# Cosmos 完整变更预览\n\n' + plan.steps.map((step, index) => `## ${index + 1}. ${step.action}\n\n目标：${step.path}\n\n` + (step.source ? '来源：' + step.source + '\n\n' : '') + (step.expected.absent ? '回收到系统废纸篓，实际回收后核对来源已移出。\n\n原文：\n\n' + noteBytes(step.data.originalProperties,step.data.originalBody) : step.expected.body !== undefined ? noteBytes(step.expected.properties ?? {}, step.expected.body) : '变更：\n\n' + JSON.stringify(step.data, null, 2)) + (step.data.links?.length ? '\n\n引用更新（Obsidian 原生改名服务）：\n' + step.data.links.map((link:any) => '- ' + link.path + '：' + link.originalLinks.join('、') + ' → ' + step.path.replace(/\.md$/,'') + '（' + link.count + '处）').join('\n') : '')).join('\n\n') + '\n\n依赖：\n' + plan.dependencies.map(x => '- ' + x.path + '（' + x.kind + '）').join('\n') + '\n' + plan.warnings.map(x => '- ' + x).join('\n');
 }
 export class Reviews {
   store: Store;

@@ -15,10 +15,12 @@ $obsidianData = Join-Path $env:APPDATA 'obsidian'
 New-Item -ItemType Directory -Force -Path $obsidianData,(Join-Path $nativeVault '.obsidian/plugins/tasknotes') | Out-Null
 @{cli=$true;updateDisabled=$true;vaults=@{cosmosacceptance=@{path=$nativeVault;ts=[DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds();open=$true}}} | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $obsidianData 'obsidian.json') -Encoding utf8NoBOM
 @{restrictedMode=$false;promptDelete=$false;alwaysUpdateLinks=$true} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $nativeVault '.obsidian/app.json') -Encoding utf8NoBOM
-'["tasknotes"]' | Set-Content -LiteralPath (Join-Path $nativeVault '.obsidian/community-plugins.json') -Encoding utf8NoBOM
+'["tasknotes","periodic-notes"]' | Set-Content -LiteralPath (Join-Path $nativeVault '.obsidian/community-plugins.json') -Encoding utf8NoBOM
 foreach ($asset in @('main.js','manifest.json','styles.css')) {
   Invoke-WebRequest -Uri "https://github.com/callumalpass/tasknotes/releases/download/4.13.8/$asset" -OutFile (Join-Path $nativeVault ".obsidian/plugins/tasknotes/$asset")
 }
+New-Item -ItemType Directory -Force -Path (Join-Path $nativeVault '.obsidian/plugins/periodic-notes') | Out-Null
+foreach ($periodicAsset in @('main.js','manifest.json','styles.css')) { Invoke-WebRequest -Uri "https://github.com/liamcain/obsidian-periodic-notes/releases/download/0.0.17/$periodicAsset" -OutFile (Join-Path $nativeVault ".obsidian/plugins/periodic-notes/$periodicAsset") }
 # Synthetic task configuration only; no production plugin settings are copied.
 New-Item -ItemType Directory -Force -Path (Join-Path $nativeVault '太阳/核聚变'),(Join-Path $nativeVault 'rules'),(Join-Path $nativeVault 'templates') | Out-Null
 @{version=3;common=@{};entities=@{task=@{folder='太阳/核聚变';folders=@('太阳/核聚变');allowSubfolders=$true}};actions=@();stageCategories=@{'太阳/核聚变'=@()}} | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $nativeVault 'rules/schema.json') -Encoding utf8NoBOM
@@ -29,6 +31,15 @@ $modelFixture=Get-Content -LiteralPath 'tests/fixtures/model-v3/schema.json' -Ra
 foreach ($entityProperty in $modelFixture.entities.PSObject.Properties) {
   foreach ($modelFolder in @($entityProperty.Value.folder)+@($entityProperty.Value.folders)) { New-Item -ItemType Directory -Force -Path (Join-Path $nativeVault $modelFolder) | Out-Null }
 }
+New-Item -ItemType Directory -Force -Path (Join-Path $nativeVault ($modelFixture.scriptFolder+'/lib')) | Out-Null
+Copy-Item -LiteralPath 'tests/fixtures/model-v3/services/system-engine.cjs' -Destination (Join-Path $nativeVault ($modelFixture.scriptFolder+'/lib/system-engine.cjs'))
+foreach($archiveCategory in $modelFixture.archiveCategories.PSObject.Properties.Value) { New-Item -ItemType Directory -Force -Path (Join-Path $nativeVault ($modelFixture.archiveFolder+'/'+$archiveCategory)) | Out-Null }
+$periodicSettings=@{showGettingStartedBanner=$false;hasMigratedDailyNoteSettings=$true;hasMigratedWeeklyNoteSettings=$true}
+foreach($periodPair in @(@('daily','day'),@('weekly','week'),@('monthly','month'),@('quarterly','quarter'),@('yearly','year'))) {
+  $definition=$modelFixture.periodTemplates.($periodPair[1])
+  $periodicSettings[$periodPair[0]]=@{enabled=$true;format=$definition.format;folder=('地球/地层/'+$definition.name);template=('templates/'+$definition.name+'.md')}
+}
+$periodicSettings | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $nativeVault '.obsidian/plugins/periodic-notes/data.json') -Encoding utf8NoBOM
 @'
 ---
 type: task

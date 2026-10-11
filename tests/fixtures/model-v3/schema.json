@@ -2,6 +2,26 @@
   "version": 3,
   "directoryVersion": 3,
   "templateRevision": "2026-10-04-model-writing-1",
+  "scriptFolder": "宇宙/演化/脚本",
+  "sources": [
+    "manual",
+    "rss",
+    "wechat",
+    "book",
+    "pdf",
+    "web",
+    "video"
+  ],
+  "formats": [
+    "note",
+    "article",
+    "pdf",
+    "image",
+    "audio",
+    "video",
+    "book"
+  ],
+  "attachmentFolder": "星云/星尘/附件",
   "archiveDays": 7,
   "common": {
     "status": {

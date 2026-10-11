@@ -1,10 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fingerprint } from '../domain/identity.js';
+import { fingerprint, safeTarget, bytesHash } from '../domain/identity.js';
 import { CosmosError } from '../errors.js';
 import { Context } from './context.js';
 import { prepareTask, prepareTaskChange, executeTask, verifyTask } from './tasks.js';
 import { prepareEntity, fillEntity, executeEntity, verifyEntity } from './entities.js';
+import { prepareDraft, prepareChanges, executeStep, verifyStep } from './business.js';
+import { queryNotes, queryActions } from './queries.js';
 import { taskEnvironment } from '../domain/tasks.js';
 import { object, text, validate } from '../registry/schema.js';
 import type { Plan, StepResult } from '../workflows/types.js';
@@ -36,6 +38,7 @@ export async function dispatch(app: any, requestPath: string) {
       result = { vaultName: app.vault.getName(), bindingId: request.bindingId, electron: process.versions.electron, tasknotes: tasknotes ? { version: tasknotes.manifest.version, apiVersion: api?.apiVersion, capabilities: ['tasks.read','tasks.write','model.read','model.validate','catalog.read','settings.snapshot','recurring.write','recurring.materialize'].filter(x => api?.hasCapability(x)), statuses: api?.catalog.statuses(), priorities: api?.catalog.priorities(), fields: api?.catalog.fields(), model: api?.model.config(), settings } : null, periodic: app.plugins.plugins['periodic-notes']?.manifest.version };
     } else if (request.action === 'task.prepare') result = await prepareTask(ctx, request.input, request.bindingId);
     else if (request.action === 'entity.prepare') result = await prepareEntity(ctx, request.input, request.bindingId);
+    else if (request.action === 'draft.prepare') result = await prepareDraft(ctx, request.input, request.bindingId);
     else if (request.action === 'entity.preview') {
       const prepared = await prepareEntity(ctx, request.input, request.bindingId);
       result = await fillEntity(ctx, prepared, request.input.content, request.bindingId);
@@ -44,13 +47,10 @@ export async function dispatch(app: any, requestPath: string) {
       result = await fillEntity(ctx, input.preparation, input.content, request.bindingId);
     }
     else if (request.action === 'change.prepare') {
-      const input = validate<any>(object({ actions: { type: 'array', minItems: 1, maxItems: 50, items: { type: 'object' } } }, ['actions']), request.input);
-      await ctx.rules(); const { plugin, api, settings } = ctx.tasknotes();
-      const steps = [];
-      for (const action of input.actions) steps.push(await prepareTaskChange(ctx, action));
-      if (new Set(steps.map(x => x.path)).size !== steps.length) throw new CosmosError('INVALID_INPUT', '同一方案不能对相同任务安排互相覆盖的动作。');
-      result = { version: 1, bindingId: request.bindingId, steps, dependencies: ctx.dependencies, environment: { tasknotes: taskEnvironment(api, settings, plugin.manifest.version) }, warnings: [] };
-    } else if (request.action === 'query.tasks') {
+      result = await prepareChanges(ctx, request.input, request.bindingId);
+    } else if (request.action === 'query.notes') result = await queryNotes(ctx, request.input);
+    else if (request.action === 'query.actions') result = await queryActions(ctx, request.input);
+    else if (request.action === 'query.tasks') {
       const input = validate<any>(object({ title: text, status: text, folder: text, project: text, limit: { type: 'integer', minimum: 1, maximum: 100 } }), request.input);
       const { api } = ctx.tasknotes();
       const list = await api.tasks.list();
@@ -67,16 +67,25 @@ export async function dispatch(app: any, requestPath: string) {
       if (app.__cosmosObsidianExecution) throw new CosmosError('VAULT_LOCKED', '应用内有未完成执行。');
       app.__cosmosObsidianExecution = request.id;
       const steps: StepResult[] = [];
+      let currentDependencies = structuredClone(plan.dependencies);
       try {
         for (let index = 0; index < plan.steps.length; index++) {
           const step = plan.steps[index]!;
+          try { await ctx.assertFresh({ ...plan, dependencies: currentDependencies }); }
+          catch (error) { steps.push({index,action:step.action,path:step.path,state:'failed',verified:false,error:{code:error instanceof CosmosError?error.code:'PRECONDITION_FAILED',message:error instanceof Error?error.message:String(error)}});break; }
           save({ ...base, state: 'started', phase: 'dispatching', index, steps });
           try {
-            const observed = step.action.startsWith('task.') ? await executeTask(ctx, step, request.id) : await executeEntity(ctx, step);
-            const verification = step.action.startsWith('task.') ? await verifyTask(ctx, step, observed) : await verifyEntity(ctx, step);
+            const observed = await executeStep(ctx, step, request.id);
+            const verification = await verifyStep(ctx, step, observed);
             steps.push({ index, action: step.action, path: step.path, state: verification.verified ? 'succeeded' : 'failed', verified: verification.verified, observed, error: verification.verified ? undefined : { code: 'VERIFICATION_FAILED', message: JSON.stringify(verification.differences) } });
             save({ ...base, state: 'started', phase: 'readback', index, steps });
             if (!verification.verified) break;
+            const changed = new Set([step.path,step.source,...(step.data.links ?? []).map((link:any)=>link.path)]);
+            currentDependencies = await Promise.all(currentDependencies.map(async dependency => {
+              if (dependency.kind === 'directory' || !changed.has(dependency.path)) return dependency;
+              const target = await safeTarget(vaultPath,dependency.path);
+              return fs.existsSync(target) ? {...dependency,kind:'file' as const,hash:bytesHash(fs.readFileSync(target))} : {...dependency,kind:'absent' as const,hash:null};
+            }));
           } catch (error) {
             // A mutation error is not proof that nothing changed. Resolve from receipts/readback.
             steps.push({ index, action: step.action, path: step.path, state: 'uncertain', verified: false, error: { code: error instanceof CosmosError ? error.code : 'RUNTIME_FAILED', message: error instanceof Error ? error.message : String(error) } });
@@ -102,7 +111,7 @@ export async function dispatch(app: any, requestPath: string) {
           const count = prior.state === 'started' ? Math.min(plan.steps.length, (prior.index ?? -1) + 1) : previous.length;
           for (let index = 0; index < count; index++) {
             const step = plan.steps[index]!, observed = previous[index]?.observed;
-            const verification = step.action.startsWith('task.') ? await verifyTask(ctx, step, observed) : await verifyEntity(ctx, step);
+            const verification = await verifyStep(ctx, step, observed);
             steps.push({ index, action: step.action, path: step.path, state: verification.verified ? 'succeeded' : 'uncertain', verified: verification.verified, observed });
           }
           const all = steps.length === plan.steps.length && steps.every(x => x.verified);

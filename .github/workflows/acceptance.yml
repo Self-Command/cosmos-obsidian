@@ -62,6 +62,8 @@ jobs:
         run: node tools/native/tasks.mjs
       - name: Exercise immutable drafts and entities in actual Obsidian
         run: node tools/native/entities.mjs
+      - name: Exercise all entities, lifecycle service, files and five real periodic creators
+        run: node tools/native/business.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: native-environment, path: artifacts/, if-no-files-found: error }
@@ -74,4 +76,4 @@ jobs:
         env:
           RESULTS: ${{ toJSON(needs) }}
         run: |
-          node -e 'const n=JSON.parse(process.env.RESULTS);if(Object.values(n).some(x=>x.result!=="success"))process.exit(1);console.log("D1–D3 implementation checks passed; not a release gate.")'
+          node -e 'const n=JSON.parse(process.env.RESULTS);if(Object.values(n).some(x=>x.result!=="success"))process.exit(1);console.log("D1–D4 implementation checks passed; not a release gate.")'

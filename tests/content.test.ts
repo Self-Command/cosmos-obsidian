@@ -58,7 +58,7 @@ describe('durable draft revisions',()=>{
   it('restores a draft in a new service and supersedes previous review before committing',async()=>{
     const root=await mkdtemp(path.join(os.tmpdir(),'cosmos-draft-'));cleanup.push(root);const store=new Store(root);let writes=0;
     const plan:any={version:1,bindingId:'bound',steps:[{action:'entity.create',path:'地球/地层/游记/旅行.md',data:{},expected:{}}],dependencies:[],environment:{},warnings:[]};
-    const adapter:any={config:{bindingId:'bound'},store,request:async(action:string)=>{if(action==='review.execute'){writes++;return {state:'succeeded',result:{state:'succeeded',verified:true,steps:[]}};}return {state:'succeeded',result:action==='entity.prepare'?{title:'旅行',facts:{},template:{fields:[{id:'s1'}]},plan}:plan};}};
+    const adapter:any={config:{bindingId:'bound'},store,request:async(action:string)=>{if(action==='review.execute'){writes++;return {state:'succeeded',result:{state:'succeeded',verified:true,steps:[]}};}return {state:'succeeded',result:action==='draft.prepare'?{title:'旅行',facts:{},template:{fields:[{id:'s1'}]},plan}:plan};}};
     const opened=await new Drafts(adapter).open({name:'旅行'}),service=new Drafts(adapter);
     const first=await service.preview(opened.draftId,{fields:{s1:'第一版有具体内容。'}}),second=await service.preview(opened.draftId,{fields:{s1:'第二版修订了原有内容。'}});
     expect(second.revision).toBe(2);expect((await service.reviews.show(first.reviewId)).state).toBe('superseded');await expect(service.reviews.commit(first.reviewId,true)).rejects.toThrow();expect(writes).toBe(0);

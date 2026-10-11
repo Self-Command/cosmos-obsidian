@@ -1,15 +1,19 @@
 import { object } from './schema.js';
 import { taskSchema, taskChangeSchema } from '../domain/tasks.js';
 import { entitySchema } from '../domain/entities.js';
+import { changeSchema, draftSchema } from '../domain/changes.js';
+import { notesQuerySchema, actionsQuerySchema } from '../runtime/queries.js';
 export interface Operation { id: string; command: string; effect: 'read' | 'preview' | 'write' | 'state'; schema: object; capabilities: string[]; description: string }
 export const registry: Operation[] = [
   { id: 'inspect.capabilities', command: 'inspect capabilities', effect: 'read', schema: object({}), capabilities: [], description: '查询当前绑定库与运行时能力。' },
   { id: 'task.preview', command: 'task preview', effect: 'preview', schema: taskSchema, capabilities: ['tasks.write'], description: '按实际规则和 TaskNotes 映射预览任务创建。' },
   { id: 'entity.preview', command: 'entity preview', effect: 'preview', schema: entitySchema, capabilities: [], description: '根据实际模板和完整内容预览普通实体创建。' },
-  { id: 'draft.open', command: 'draft open', effect: 'state', schema: entitySchema, capabilities: [], description: '锁定实体、目录和模板，返回必要写作字段。' },
+  { id: 'draft.open', command: 'draft open', effect: 'state', schema: draftSchema, capabilities: [], description: '锁定实体、周期或生命周期与实际模板，返回必要写作字段。' },
   { id: 'draft.preview', command: 'draft preview', effect: 'preview', schema: object({ fields: { type: 'object' } }, ['fields']), capabilities: [], description: '为原草稿填写内容并保存新的不可变预览。' },
-  { id: 'change.preview', command: 'change preview', effect: 'preview', schema: object({ actions: { type: 'array', minItems: 1, maxItems: 50, items: taskChangeSchema } }, ['actions']), capabilities: ['tasks.write'], description: '预览指定任务变更或重复实例动作。' },
+  { id: 'change.preview', command: 'change preview', effect: 'preview', schema: changeSchema, capabilities: [], description: '统一预览创建、任务、关系、正文、文件及生命周期变更。' },
   { id: 'query.tasks', command: 'query tasks', effect: 'read', schema: object({ title: { type: 'string' }, status: { type: 'string' }, folder: { type: 'string' }, project: { type: 'string' }, limit: { type: 'integer', minimum: 1, maximum: 100 } }), capabilities: ['tasks.read'], description: '查询 TaskNotes 任务。' },
+  { id: 'query.notes', command: 'query notes', effect: 'read', schema: notesQuerySchema, capabilities: [], description: '按指定范围读取实体、属性、正文及当前问题；不自动修复。' },
+  { id: 'query.actions', command: 'query actions', effect: 'read', schema: actionsQuerySchema, capabilities: [], description: '查询指定实体的当前合法生命周期与归档资格。' },
   { id: 'review.show', command: 'review show', effect: 'read', schema: object({}), capabilities: [], description: '读取原方案完整预览。' },
   { id: 'review.commit', command: 'review commit', effect: 'write', schema: object({}), capabilities: [], description: '批准后提交不可变方案并读回。' },
   { id: 'review.cancel', command: 'review cancel', effect: 'state', schema: object({}), capabilities: [], description: '取消未派发的方案。' },

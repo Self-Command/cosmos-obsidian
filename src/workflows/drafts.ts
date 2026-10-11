@@ -10,7 +10,7 @@ export class Drafts {
   store: Store;
   constructor(public adapter: Obsidian, public reviews = new Reviews(adapter)) { this.store = adapter.store; }
   async open(input: unknown) {
-    const result = await this.adapter.request('entity.prepare', input);
+    const result = await this.adapter.request('draft.prepare', input);
     if (result.state !== 'succeeded') throw new CosmosError(result.error?.code ?? 'DRAFT_FAILED', result.error?.message ?? '无法准备草稿。', result.error?.details);
     const preparation = result.result as EntityPreparation, id = newId('d');
     const draft: Draft = { id, bindingId: this.adapter.config.bindingId, revision: 0, preparation, preparationHash: fingerprint(preparation) };
