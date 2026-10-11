@@ -57,6 +57,8 @@ export async function policyDisk(ctx:Context) {
   return fingerprint(policy(data));
 }
 function values(raw:any, id:string) {
+  if(raw.members&&((raw.role??'entry')!=='index'||!['collection','series'].includes(raw.kind))||raw.outline&&((raw.role??'entry')!=='index'||raw.kind!=='book'))throw new CosmosError('INVALID_INPUT','成员仅属于专题/系列目录；大纲仅属于书籍目录。');
+  if(raw.kind==='book'&&raw.role==='index'&&raw.members||['collection','series'].includes(raw.kind)&&raw.outline)throw new CosmosError('INVALID_INPUT','不能创建重复的组织清单。');
   return {site_target:'amytis',site_id:id,site_locale:raw.language,site_kind:raw.kind,site_role:raw.role??'entry',site_slug:raw.slug,site_date:raw.date,title:raw.title,excerpt:raw.excerpt??'',coverImage:raw.coverImage??'',tags:raw.tags??[],publish:raw.permission,site_body:raw.scope,...(raw.members?{site_members:raw.members}:{}),...(raw.outline?{site_outline:raw.outline}:{})};
 }
 async function prospective(ctx:Context, service:any, records:any[], notePath:string, properties:any, body:string) {
@@ -82,7 +84,7 @@ export async function prepareWriting(ctx:Context,raw:unknown,bindingId:string):P
   if(v.kind==='book'&&(v.role??'entry')==='entry')properties.site_kind='post';
   if(input.relations?.project)properties.project=[await ctx.relation(input.relations.project,'project')];
   if(input.relations?.area)properties.area=await ctx.relation(input.relations.area,'area');
-  const plan:Plan={version:1,bindingId,steps:[{action:'writing.create',path:target,data:{values:v},expected:{properties}}],dependencies:ctx.dependencies,environment:ctx.environment,warnings:['本方案创建本地写作并登记身份；上传需要另行审阅发布方案。']};
+  const plan:Plan={version:1,bindingId,steps:[{action:'writing.create',path:target,data:{values:v},expected:{properties}}],dependencies:ctx.dependencies,environment:ctx.environment,warnings:['本方案创建本地写作并登记身份；上传需要另行审阅发布方案。',...(v.scope==='whole'?['选择整篇会包含模板中的内部写作段落，需要逐字审阅公开范围。']:[]),...(v.kind==='book'&&(v.role??'entry')==='entry'?['章节先登记为独立文章；保存书籍大纲后由目录确定章节归属。']:[])]};
   const p={version:1 as const,bindingId,plan,template,title:name,facts:input};return {...p,hash:fingerprint(p)};
 }
 export async function validateWriting(ctx:Context,plan:Plan) {

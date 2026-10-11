@@ -1,6 +1,7 @@
 import { object, text } from '../registry/schema.js';
 const strings = { type: 'array', items: text, maxItems: 100 };
-export const publicationValues = object({ language: { enum: ['zh','en'] }, kind: { enum: ['post','note','flow','collection','series','book'] }, role: { enum: ['entry','index'] }, slug: text, date: text, title: text, excerpt: {type:'string'}, coverImage: {type:'string'}, tags: strings, permission: {type:'boolean'}, scope: {enum:['marked','whole']}, members: strings, outline: {type:'array',maxItems:100} }, ['language','kind','slug','date','title','permission','scope']);
+const outlineNode=(depth:number):object=>depth===0?object({link:text},['link']):{oneOf:[object({link:text},['link']),object({section:text,items:{type:'array',minItems:1,maxItems:100,items:outlineNode(depth-1)}},['section','items'])]};
+export const publicationValues = object({ language: { enum: ['zh','en'] }, kind: { enum: ['post','note','flow','collection','series','book'] }, role: { enum: ['entry','index'] }, slug: text, date: text, title: text, excerpt: {type:'string'}, coverImage: {type:'string'}, tags: strings, permission: {type:'boolean'}, scope: {enum:['marked','whole']}, members: strings, outline: {type:'array',maxItems:100,items:outlineNode(8)} }, ['language','kind','slug','date','title','permission','scope']);
 export const writingSchema = object({ action: {const:'writing.create'}, name: text, folder: text, values: publicationValues, relations: object({project:text,area:text}), content: {type:'object'} }, ['action','name','values']);
 export const publicationSchema = { oneOf: [
   object({action:{const:'register'},path:text,values:publicationValues},['action','path','values']),

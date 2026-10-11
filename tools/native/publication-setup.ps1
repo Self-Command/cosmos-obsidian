@@ -13,10 +13,11 @@ New-Item -ItemType Directory -Force -Path (Join-Path $vault '宇宙/演化/变�
 @{patchedFingerprint=$fingerprint}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $vault '宇宙/演化/变更/amytis-implementation.json') -Encoding utf8NoBOM
 $contract=Get-Content -LiteralPath 'tests/fixtures/model-v3/services/publish-contract.json' -Raw | ConvertFrom-Json -AsHashtable
 # Exact source config changes only for the synthetic fixture. All renderer source blob checks stay real.
-$contract.sourceBlobs['site.config.ts']='b8b08f4f9014b341e423f2c61fc458141a3aac7d'
+$contract.sourceBlobs['site.config.ts']='63ba27e8ed4696a05f21754738d0bb66e2e20ef4'
 $settings=@{github=@{user='Self-Command';repo='amytis';branch='main';automaticallyMergePR=$true;verifiedRepo=$true;tokenSecret='cosmos-publication-fixture';otherRepo=@();dryRun=@{enable=$false;folderName='enveloppe'};api=@{tiersForApi='Github Free/Pro/Team (default)';hostname=''};workflow=@{commitMessage='Synthetic';name='deploy.yml'};rateLimit=0};upload=@{};embed=@{};conversion=@{};plugin=@{}}
 foreach($rule in $contract.settings){$keys=$rule.pointer.TrimStart('/').Split('/');$cursor=$settings;foreach($key in $keys[0..($keys.Length-2)]){if(!$cursor.ContainsKey($key)){$cursor[$key]=@{}};$cursor=$cursor[$key]};$cursor[$keys[-1]]=$rule.value}
 $settings|ConvertTo-Json -Depth 20|Set-Content -LiteralPath (Join-Path $plugin 'data.json') -Encoding utf8NoBOM
 foreach($module in @('publish-adapter.cjs','publish-service.cjs','publish-transport.cjs')){Copy-Item -LiteralPath (Join-Path 'tests/fixtures/model-v3/services' $module) -Destination (Join-Path $vault ('宇宙/演化/脚本/lib/'+$module))}
 $contract|ConvertTo-Json -Depth 20|Set-Content -LiteralPath (Join-Path $vault '宇宙/演化/脚本/lib/publish-contract.json') -Encoding utf8NoBOM
 New-Item -ItemType Directory -Force -Path (Join-Path $vault '星云/星尘/附件/图片') | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $vault '太阳/光球/文章') | Out-Null

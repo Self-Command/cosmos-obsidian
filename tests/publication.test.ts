@@ -18,8 +18,10 @@ async function vault(){
   await cp('tests/fixtures/model-v3/templates',root+'/templates',{recursive:true});
   await cp('tests/fixtures/model-v3/services',root+'/'+schema.scriptFolder+'/lib',{recursive:true});
   for(const e of Object.values(schema.entities) as any[])for(const folder of e.folders)await mkdir(root+'/'+folder,{recursive:true});
+  await mkdir(root+'/太阳/光球/文章',{recursive:true});
   const files=new Map<string,any>();
   async function seed(p:string,fm:any,body='<!-- amytis:public:start -->\n# Public title\n\nConcrete public evidence.\n<!-- amytis:public:end -->\n\nPrivate source material.'){
+    await mkdir(path.dirname(root+'/'+p),{recursive:true});
     await writeFile(root+'/'+p,noteBytes({type:'output',status:'draft',source:'manual',publish:false,tags:[],...fm},body));
     const file={path:p,basename:path.posix.basename(p,'.md')};files.set(p,file);return file;
   }
