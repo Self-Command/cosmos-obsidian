@@ -3,6 +3,12 @@ on:
   push:
     branches: [main, codex/**]
   workflow_dispatch:
+    inputs:
+      behavior:
+        description: Required real-host acceptance profile; smoke cannot release
+        type: choice
+        options: [none, smoke, full]
+        default: none
 permissions:
   contents: read
 jobs:
@@ -101,6 +107,43 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with: {name: 'installation-${{ matrix.os }}',path: artifacts/,if-no-files-found: error}
+  behavior:
+    if: github.event_name == 'workflow_dispatch' && inputs.behavior != 'none'
+    needs: build
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        host: [codex, claude]
+        case: [task, travel]
+        activation: [implicit, injected]
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      EVALUATION_TOKEN: ${{ secrets.EVALUATION_TOKEN }}
+      BEHAVIOR_HOST: ${{ matrix.host }}
+      BEHAVIOR_CASE: ${{ matrix.case }}
+      BEHAVIOR_ACTIVATION: ${{ matrix.activation }}
+      BEHAVIOR_PROFILE: ${{ inputs.behavior }}
+      BEHAVIOR_SAMPLES: ${{ inputs.behavior == 'full' && '3' || '1' }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '24.21.0',cache: npm,cache-dependency-path: 'tools/behavior/package-lock.json'}
+      - run: npm ci --ignore-scripts
+      - run: npm ci --prefix tools/behavior --ignore-scripts --no-audit --no-fund
+      - uses: actions/download-artifact@v4
+        with: {name: cosmos-candidate,path: dist/}
+      - run: node tools/verify-package.mjs
+      - shell: pwsh
+        run: ./tools/native/setup.ps1
+      - run: node tools/native/probe.mjs
+      - name: Required model in official persisted host and real isolated Obsidian
+        run: node tools/behavior/run.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: 'behavior-${{ matrix.host }}-${{ matrix.case }}-${{ matrix.activation }}',path: artifacts/,if-no-files-found: error}
   publication:
     needs: build
     runs-on: windows-latest

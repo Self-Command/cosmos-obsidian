@@ -104,3 +104,12 @@ E02/E03/P01 独立验证闭合于 run 38158807169、候选 e0512cee993ccba8b4f11
 同一方案的外部 Node 与 Obsidian Node 曾因 ICU 对中文键排序不同产生 REVIEW_TAMPERED；canonical 改为固定 UTF-16 键序，不再依赖 localeCompare。多语言/多形态原生测试负责跨实际宿主验证。发布身份/组织用投影指纹，正文仅绑定选中和实际依赖的源文件；无关公开正文变化保持方案可用。
 
 E04/E05/P02 最终独立验证：run 38163283368、候选 e5f95c7b7b1db73c715e4a72caed42fe8951837c，23 个真实发布场景通过；包含中英文全形态、附件、PR/部署、取消、漂移、清单保存失败日志恢复和撤稿。测试映射边界保持如上；不代表正式 Amytis 的生产部署验收。
+
+## D6 技能、发行和宿主验收设计继承
+
+| ID | 来源/范围 | 采用判断 | 新实现与验证 |
+| --- | --- | --- | --- |
+| I08 | 冻结安装 e196141ab4a76ff4ba3731000e470aa2cc02f3d7 的十技能业务判断，以及当前模板注释 | 保留文件职责、项目/领域分工、来源/认知/检验区分、游记现场与公开许可；舍弃每技能重复 prepare/plan/apply/check、JSON 指针、结果文件与指纹传递 | 十技能正文全新编写；写作结构来自当前 draft 字段；宿主自然发现和内容结果待新验收 |
+| I09 | 冻结源码 37118c2365dcf353662509676736ebfe014e2986 的 tools/codex-session-eval.mjs、claude-session-eval.mjs、session-metrics.mjs 及两个 session 工作流 | 只继承官方 SDK/持久 resume 使用、unique native response ID 计量意图和既定时间门槛。旧 harness 使用合成桌面，不能代表真实 Obsidian；不复制旧实现、工具链、state 格式或指标函数 | 新 harness 操作实际隔离 Obsidian/TaskNotes，读取本次宿主的 response ID，度量新 CLI 内部时间、正文和无关探索；官方依赖独立 lockfile 固定 0.162.1 / 0.3.295。待新 Actions |
+
+安装器与切换日志、独占锁、逐入口快照及回滚是全新代码。只复制经新构建登记的发行字节；用户配置/状态在发行包外。标准 SDK 调用本身不是源码继承或旧测试通过证据。

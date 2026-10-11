@@ -10,6 +10,8 @@ import { Drafts } from '../workflows/drafts.js';
 export async function main(argv = process.argv.slice(2)) {
   const started=performance.now(),startedAt=new Date().toISOString();
   let adapter:Obsidian|undefined;
+  let command='parse';
+  try {
   const args = [...argv];
   let configFile: string | undefined;
   const index = args.indexOf('--config');
@@ -19,6 +21,7 @@ export async function main(argv = process.argv.slice(2)) {
   const option = (flag: string) => { const i = clean.indexOf(flag); if (i < 0) return undefined; const value = clean[i + 1]; if (!value || value.startsWith('--')) throw new CosmosError('INVALID_INPUT', flag + ' 需要值。'); clean.splice(i, 2); return value; };
   const inputFile = option('--input'), reviewId = option('--review'), executionId = option('--execution'), draftId = option('--draft');
   const confirmed = clean.includes('--confirm'); if (confirmed) clean.splice(clean.indexOf('--confirm'), 1);
+  command=clean.join(' ');
   let result;
   if (!clean.length || clean[0] === 'help' || clean[0] === '--help') {
     const requested=clean.slice(1).join(' '),commands=commandHelp().filter(x=>!requested||x.command===requested||x.command.startsWith(requested+' '));
@@ -55,5 +58,6 @@ export async function main(argv = process.argv.slice(2)) {
   if(process.env.COSMOS_TRACE==='1'&&adapter)await appendFile(path.join(adapter.config.stateRoot,'metrics.jsonl'),JSON.stringify({command:clean.join(' '),startedAt,milliseconds:performance.now()-started,requests:adapter.timings,reviewId:(result as any).reviewId,draftId:(result as any).draftId,executionId:(result as any).executionId,state:(result as any).state})+'\n');
   process.stdout.write(JSON.stringify(result, null, pretty ? 2 : undefined) + '\n');
   if (!(result as any).ok) process.exitCode = (result as any).state === 'uncertain' ? 5 : 4;
+  }catch(error){if(process.env.COSMOS_TRACE==='1'&&adapter)await appendFile(path.join(adapter.config.stateRoot,'metrics.jsonl'),JSON.stringify({command,startedAt,milliseconds:performance.now()-started,requests:adapter.timings,state:'error',errorCode:error instanceof CosmosError?error.code:'INTERNAL_ERROR'})+'\n').catch(()=>{});throw error;}
 }
 main().catch(e => { const { exitCode, ...result } = failure(e); process.stdout.write(JSON.stringify(result) + '\n'); process.exitCode = exitCode; });

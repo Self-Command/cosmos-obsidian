@@ -81,7 +81,7 @@ export class Installer {
     await verifyPackage(plan.release,plan.sourceSha);
     const connection=JSON.parse(await fs.readFile(path.join(plan.release,'connection.json'),'utf8'));if(connection.configPath!==plan.configPath||bytesHash(await fs.readFile(plan.configPath))!==plan.configHash)throw new CosmosError('REVIEW_STALE','安装连接或绑定配置变化。');const config=await loadConfig(connection.configPath);if(config.bindingId!==plan.bindingId)throw new CosmosError('WRONG_VAULT','安装绑定变化。');
     for(const entry of plan.entries)if(fingerprint(await snapshot(entry.target))!==fingerprint(entry.snapshot)||await exists(entry.backup))throw new CosmosError('REVIEW_STALE','原技能入口或恢复位置变化。',{target:entry.target});
-    plan.state='switching';await save(file,plan);
+    plan.state='switching';retain=true;await save(file,plan);
     try{
       for(const entry of plan.entries){
         await fs.mkdir(path.dirname(entry.target),{recursive:true});
@@ -89,8 +89,8 @@ export class Installer {
         entry.phase='backed-up';await save(file,plan);entry.phase='linking';await save(file,plan);
         await fs.symlink(entry.source,entry.target,process.platform==='win32'?'junction':'dir');entry.phase='linked';await save(file,plan);
       }
-      await this.verifyLinks(plan);plan.state='complete';await save(file,plan);return this.status(rawRoot,id);
-    }catch(error){await this.rollback(plan,file);retain=plan.state==='partial';return {ok:false,state:plan.state,installationId:id,error:{code:'INSTALL_FAILED',message:error instanceof Error?error.message:String(error)}};}
+      await this.verifyLinks(plan);plan.state='complete';await save(file,plan);retain=false;return this.status(rawRoot,id);
+    }catch(error){const restored=await this.rollback(plan,file);retain=restored==='partial';return {ok:false,state:restored,installationId:id,error:{code:'INSTALL_FAILED',message:error instanceof Error?error.message:String(error)}};}
     }finally{if(!retain)await releaseLock();}
   }
   private async verifyLinks(plan:Installation){for(const entry of plan.entries)if(await fs.realpath(entry.target)!==entry.source)throw new CosmosError('INSTALL_CONFLICT','宿主发现入口不指向当前候选。',{target:entry.target});}
@@ -105,7 +105,7 @@ export class Installer {
       if(await exists(entry.backup)){if(await exists(entry.target))throw new CosmosError('INSTALL_CONFLICT','原入口恢复位置冲突。');await fs.rename(entry.backup,entry.target);}
       if(fingerprint(await snapshot(entry.target))!==fingerprint(entry.snapshot))throw new CosmosError('INSTALL_CONFLICT','原入口未完整恢复。');entry.phase='restored';await save(file,plan);
     }catch{complete=false;}
-    plan.state=complete?'rolled-back':'partial';await save(file,plan);
+    const state=complete?'rolled-back':'partial';plan.state=state;await save(file,plan);return state;
   }
-  async recover(rawRoot:string,id:string,confirmed:boolean){if(!confirmed)throw new CosmosError('CONFIRMATION_REQUIRED','恢复安装需要批准原方案。');const {root,plan,file}=await this.read(rawRoot,id);if(!['switching','partial'].includes(plan.state))throw new CosmosError('INVALID_STATE','此方案不需要中断恢复。');const releaseLock=await this.acquire(root,id,true);let retain=true;try{await this.rollback(plan,file);retain=plan.state==='partial';return this.status(rawRoot,id);}finally{if(!retain)await releaseLock();}}
+  async recover(rawRoot:string,id:string,confirmed:boolean){if(!confirmed)throw new CosmosError('CONFIRMATION_REQUIRED','恢复安装需要批准原方案。');const {root,plan,file}=await this.read(rawRoot,id);if(!['switching','partial'].includes(plan.state))throw new CosmosError('INVALID_STATE','此方案不需要中断恢复。');const releaseLock=await this.acquire(root,id,true);let retain=true;try{retain=(await this.rollback(plan,file))==='partial';return this.status(rawRoot,id);}finally{if(!retain)await releaseLock();}}
 }
