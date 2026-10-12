@@ -41,7 +41,7 @@ async function prepareSample(index){
   async function turn(prompt,phase,fault={}){
     const injected=phase==='plan'&&actualActivation==='injected',row={phase,prompt,startedAt:new Date().toISOString(),tools:[],responses:[],injected,host:actualHost};sample.turns.push(row);await save();console.log(JSON.stringify({host:actualHost,kind,activation:actualActivation,index,phase,state:'started'}));
     const planningPhase=phase==='plan'||phase.endsWith('-plan');
-    row.controllerTimeoutMs=planningPhase?240000:180000;
+    row.controllerTimeoutMs=planningPhase?600000:300000;
     const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),row.controllerTimeoutMs),started=performance.now();
     let receiptWatcher,watching=false;
     if(fault.interruptReviewId)receiptWatcher=setInterval(async()=>{if(watching||controller.signal.aborted)return;watching=true;try{const review=JSON.parse(await fs.readFile(path.join(stateRoot,'reviews',fault.interruptReviewId+'.json'),'utf8'));if(review.executionId){const receipt=JSON.parse(await fs.readFile(path.join(stateRoot,'receipts',review.executionId+'.json'),'utf8'));if(receipt.state==='succeeded'&&receipt.result?.state==='succeeded'){row.interruption={kind:'controller aborted official host after actual terminal native receipt',executionId:review.executionId};controller.abort();}}}catch{}finally{watching=false;}},25);

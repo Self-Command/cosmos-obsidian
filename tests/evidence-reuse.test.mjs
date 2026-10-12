@@ -1,5 +1,5 @@
 import {it,expect} from 'vitest';
-import {assessSkillReuse,validateSkillReuse,evidenceDependencies} from '../tools/reuse-skill-evidence.mjs';
+import {assessSkillReuse,validateSkillReuse,evidenceDependencies,scopedSkillSuite,scopedController} from '../tools/reuse-skill-evidence.mjs';
 import {createHash} from 'node:crypto';
 const hash='a'.repeat(64),tree='b'.repeat(40);
 function fixture(){
@@ -25,4 +25,12 @@ it('rejects changed original reports and forged eligibility proofs',()=>{const {
 it('permits only the source identity metadata to differ in the dependency inventory',()=>{
   const {candidate,report,context}=fixture(),digest=object=>createHash('sha256').update(JSON.stringify(object,null,2)).digest('hex');context.sbom={before:{sourceSha:report.sourceSha,packages:[{name:'library',version:'1.0.0'}]},after:{sourceSha:candidate.sourceSha,packages:[{name:'library',version:'1.0.0'}]}};report.candidate.files['dependencies.json']=digest(context.sbom.before);candidate.files['dependencies.json']=digest(context.sbom.after);
   expect(assessSkillReuse(candidate,report,context).eligible).toBe(true);context.sbom.after.packages[0].version='2.0.0';candidate.files['dependencies.json']=digest(context.sbom.after);expect(assessSkillReuse(candidate,report,context).eligible).toBe(false);
+});
+it('isolates only unrelated skill branches and retains all shared scenario helpers',()=>{
+  const source="shared helper\n  if(skill==='cosmos-tasks'){\n  first scenario\n  }else if(skill==='cosmos-files'){\n  second scenario\n  }\n  sample.results.push({case:scenario+'/skill-flow',passed:true});\nshared footer";
+  expect(scopedSkillSuite(source,'cosmos-tasks')).toBe(scopedSkillSuite(source.replace('second scenario','corrected second scenario'),'cosmos-tasks'));expect(scopedSkillSuite(source,'cosmos-files')).not.toBe(scopedSkillSuite(source.replace('second scenario','corrected second scenario'),'cosmos-files'));expect(scopedSkillSuite(source,'cosmos-tasks')).not.toBe(scopedSkillSuite(source.replace('shared helper','changed helper'),'cosmos-tasks'));expect(()=>scopedSkillSuite(source,'unknown')).toThrow();
+});
+it('preserves all controller logic and allows previously complete evidence only when bounded waiting increases',()=>{
+  const before=scopedController('logic\nrow.controllerTimeoutMs=planningPhase?240000:180000;\nlogic'),after=scopedController('logic\nrow.controllerTimeoutMs=planningPhase?600000:300000;\nlogic');expect(before.source).toBe(after.source);expect(scopedController('other\nrow.controllerTimeoutMs=planningPhase?600000:300000;\nlogic').source).not.toBe(before.source);
+  const {candidate,report,context}=fixture();context.hostWait={before:before.budgets,after:after.budgets};expect(assessSkillReuse(candidate,report,context).eligible).toBe(true);context.hostWait.after.planning=120000;expect(assessSkillReuse(candidate,report,context).eligible).toBe(false);
 });

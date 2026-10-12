@@ -125,7 +125,7 @@ jobs:
     needs: build
     strategy:
       fail-fast: false
-      max-parallel: 1
+      max-parallel: 2
       matrix: ${{ fromJSON(inputs.behavior == 'full' && '{"include":[{"host":"mixed","case":"cosmos-plan","activation":"mixed"},{"host":"mixed","case":"cosmos-tasks","activation":"mixed"},{"host":"mixed","case":"cosmos-create","activation":"mixed"},{"host":"mixed","case":"cosmos-project","activation":"mixed"},{"host":"mixed","case":"cosmos-learn","activation":"mixed"},{"host":"mixed","case":"cosmos-life","activation":"mixed"},{"host":"mixed","case":"cosmos-evolve","activation":"mixed"},{"host":"mixed","case":"cosmos-files","activation":"mixed"},{"host":"mixed","case":"cosmos-amytis","activation":"mixed"},{"host":"mixed","case":"cosmos-check","activation":"mixed"}]}' || '{"host":["codex","claude"],"case":["task","travel"],"activation":["implicit","injected"]}') }}
     runs-on: windows-latest
     timeout-minutes: 45

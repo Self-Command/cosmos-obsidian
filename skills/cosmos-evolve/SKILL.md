@@ -16,6 +16,6 @@ compatibility: Node 24、已绑定的 Obsidian CLI 与库内生命周期服务�
 '@ | node "<本技能实际目录>/scripts/cosmos.mjs" query actions --input -
 ```
 
-需要正文时 `draft open` 输入 `{"action":"entity.evolve","path":"实际相对路径.md","transition":"当前动作 id"}`，按返回字段填正文再 `draft preview`。无需新增正文的动作可直接 `change preview`；具体 Schema 用 `help change preview` 获取。
+需要正文时 `draft open` 输入 `{"action":"entity.evolve","path":"实际相对路径.md","transition":"当前动作 id"}`，按返回字段填正文再 `draft preview`。代码保存原文和叙事顺序，并在关联创建时自动添加来源链接；字段只写新模板需要的内容，不复制原文。保留 skeleton 的表头、标签和固定内容，非 repeat 字段不添加章节标题。无需新增正文的动作可直接 `change preview`；具体 Schema 用 `help change preview` 获取。
 
-展示原文件与新文件的关系、实际变化、资格说明和 `preview.link` 实际全文链接。审阅批准后一次 `review commit --review <reviewId> --confirm`。中断查询原 execution，沿用批准；部分完成不全范围回滚或重新推进。
+草稿返回 review-ready 后，直接展示原文件与新文件的关系、实际变化、资格说明和 `preview.link` 实际全文链接，等待审阅。只读资格查询直接报告 query actions 返回的当前结果，不生成方案。审阅批准后一次 `review commit --review <reviewId> --confirm`。中断查询原 execution，沿用批准；部分完成不全范围回滚或重新推进。

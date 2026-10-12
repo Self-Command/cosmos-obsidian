@@ -18,4 +18,6 @@ compatibility: Node 24、已绑定的 Obsidian CLI。
 
 同一文件的不同动作分成相继审阅的方案，不在一个方案中重复安排同一路径。
 
+移动保持原实体类型与阶段，目标目录需已存在；跨阶段改变由生命周期处理。只读询问目录边界时，用 `query notes` 读取精确文件，再用 `query model --input <JSON>` 的 `{"entity":"返回的实际 type"}` 核对允许目录；直接报告约束，不生成移动方案或重复探测环境。
+
 展示精确目标、正文差异、引用变化及 `preview.link` 实际全文链接。用户审阅批准后一次 `review commit --review <reviewId> --confirm`，自动执行与复检。取消用 `review cancel`。结果不确定用原 `executionId` 查询 `execution verify`，不靠失败消息认定零变更。
