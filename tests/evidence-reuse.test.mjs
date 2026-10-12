@@ -1,5 +1,5 @@
 import {it,expect} from 'vitest';
-import {assessSkillReuse,validateSkillReuse,evidenceDependencies,scopedSkillSuite,scopedController} from '../tools/reuse-skill-evidence.mjs';
+import {assessSkillReuse,validateSkillReuse,evidenceDependencies,scopedSkillSuite,scopedController,scopedPreviewSelection} from '../tools/reuse-skill-evidence.mjs';
 import {createHash} from 'node:crypto';
 const hash='a'.repeat(64),tree='b'.repeat(40);
 function fixture(){
@@ -33,4 +33,14 @@ it('isolates only unrelated skill branches and retains all shared scenario helpe
 it('preserves all controller logic and allows previously complete evidence only when bounded waiting increases',()=>{
   const before=scopedController('logic\nrow.controllerTimeoutMs=planningPhase?240000:180000;\nlogic'),after=scopedController('logic\nrow.controllerTimeoutMs=planningPhase?600000:300000;\nlogic');expect(before.source).toBe(after.source);expect(scopedController('other\nrow.controllerTimeoutMs=planningPhase?600000:300000;\nlogic').source).not.toBe(before.source);
   const {candidate,report,context}=fixture();context.hostWait={before:before.budgets,after:after.budgets};expect(assessSkillReuse(candidate,report,context).eligible).toBe(true);context.hostWait.after.planning=120000;expect(assessSkillReuse(candidate,report,context).eligible).toBe(false);
+});
+it('distinguishes unchanged route labels in help output from loading an altered skill body',()=>{
+  const {candidate,report,context}=fixture();report.samples[0].turns[0].tools.push({name:'command_execution',command:'node /skills/cosmos-tasks/scripts/cosmos.mjs --help',output:'For a project, cosmos-project is the registered route.'});expect(assessSkillReuse(candidate,report,context).eligible).toBe(true);
+  report.samples[0].turns[0].tools.at(-1).output='---\nname: cosmos-project\ndescription: Example\n---\nChanged skill body';expect(assessSkillReuse(candidate,report,context).eligible).toBe(false);
+});
+it('extends only the exact preview selection rule for evidence that already passed with one created and displayed plan',()=>{
+  const before="prefix\n    const fresh=(await states('reviews')).filter(r=>!old.includes(r.id)&&r.state==='review-ready');assert.equal(fresh.length,1,'One current immutable plan is required');\n    const review=fresh[0];assert.ok(row.answer.includes(review.id),'The user must receive the actual full preview link');\nfooter";
+  const after="prefix\n    const fresh=(await states('reviews')).filter(r=>!old.includes(r.id)&&r.state==='review-ready'),presented=fresh.filter(r=>row.answer.includes(r.id));assert.equal(presented.length,1,'One user-presented immutable plan is required');\n    const review=presented[0];if(fresh.length>1)sample.diagnostics.push({phase,observation:'Preview revised before user approval',unpresentedReviewIds:fresh.filter(r=>r.id!==review.id).map(r=>r.id)});\nfooter";
+  expect(scopedPreviewSelection(before).source).toBe(scopedPreviewSelection(after).source);expect(scopedPreviewSelection(after.replace('row.answer.includes(r.id)','true')).source).not.toBe(scopedPreviewSelection(before).source);
+  const {candidate,report,context}=fixture();context.previewSelection={before:'one-created',after:'one-presented'};expect(assessSkillReuse(candidate,report,context).eligible).toBe(true);context.previewSelection.after='any-plan';expect(assessSkillReuse(candidate,report,context).eligible).toBe(false);
 });

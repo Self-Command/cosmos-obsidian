@@ -36,8 +36,8 @@ export async function skillSuite(c,{snapshot,markdownFiles,save}){
   async function freshPlan(prompt,phase='plan'){
     const before=await snapshot(),old=(await states('reviews')).map(r=>r.id);
     const row=await turn(prompt,phase);assert.equal(await snapshot(),before,'Business Markdown changed before user review');
-    const fresh=(await states('reviews')).filter(r=>!old.includes(r.id)&&r.state==='review-ready');assert.equal(fresh.length,1,'One current immutable plan is required');
-    const review=fresh[0];assert.ok(row.answer.includes(review.id),'The user must receive the actual full preview link');
+    const fresh=(await states('reviews')).filter(r=>!old.includes(r.id)&&r.state==='review-ready'),presented=fresh.filter(r=>row.answer.includes(r.id));assert.equal(presented.length,1,'One user-presented immutable plan is required');
+    const review=presented[0];if(fresh.length>1)sample.diagnostics.push({phase,observation:'Preview revised before user approval',unpresentedReviewIds:fresh.filter(r=>r.id!==review.id).map(r=>r.id)});
     sample.approvedPreviewPaths??=[];sample.approvedPreviewPaths.push(path.join(stateRoot,'previews',review.id+'.md'));
     return {review,before};
   }

@@ -30,4 +30,6 @@ PowerShell 输入的起止标记分别在独立行，结束标记不能紧接 JS
 
 多份记录一起审阅时，分别 `draft open` 获取字段后直接用一个 `change preview --input <JSON>`，不另生成各单文件的 draft preview。示例：`{"actions":[{"action":"journal.create","period":"day","date":"2024-04-03","content":{"fields":{"实际字段id":"日记正文"}}},{"action":"journal.create","period":"week","date":"2024-04-03","content":{"fields":{"实际字段id":"周记正文"}}}]}`。对象与事务用同样组合形式，action=entity.create 并分别指定 entity。每次预览调用按顺序执行，返回一个包含全部文件的审阅方案。
 
+长正文或多个 actions 优先保存为库外 UTF-8 JSON 文件，再通过 `--input <文件>` 提交；用 JSON 序列化生成嵌套对象，不手工拼接结束括号。遇到“输入需要 UTF-8 JSON”时，也可能是 JSON 语法错误：先对该输入文件调用 `node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));console.log('JSON valid')" "实际输入文件"`，按返回的位置修正引号或括号，再重试预览。仅反复转码无法修复语法；不读取执行器源码或重复打开已有模板。
+
 根据返回的 summary 展示实际目录、正文要点和 `preview.link` 实际全文链接，并结束当前回复，等待用户审阅该具体预览后的确认。创建请求只授权准备方案；不能把它或模型自己的“现在提交”当作预览批准。这是用户已确定的知识库写入流程。收到对该预览的确认后一次 `review commit --review <reviewId> --confirm`，它已执行并读回复检，返回 steps 的 absolutePath 可直接链接成品。取消用 `review cancel`。中断后用原 review/execution ID 查询和复检，沿用已有批准，避免重复落盘。

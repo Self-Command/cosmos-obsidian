@@ -13,6 +13,10 @@ on:
         description: Optional complete prior full campaign; unchanged passed skills require byte and dependency proof
         type: string
         default: ''
+      evidence_fallback_run:
+        description: Optional earlier campaign for a passed unchanged skill; the same equivalence proof is required
+        type: string
+        default: ''
 permissions:
   contents: read
   actions: read
@@ -138,6 +142,7 @@ jobs:
       BEHAVIOR_PROFILE: ${{ inputs.behavior }}
       BEHAVIOR_SAMPLES: ${{ inputs.behavior == 'full' && matrix.case != 'workflows' && '3' || '1' }}
       BASE_EVIDENCE_RUN: ${{ inputs.behavior == 'full' && inputs.evidence_run || '' }}
+      FALLBACK_EVIDENCE_RUN: ${{ inputs.behavior == 'full' && inputs.evidence_fallback_run || '' }}
     steps:
       - uses: actions/checkout@v4
         with: {persist-credentials: false,fetch-depth: 0}
@@ -162,6 +167,22 @@ jobs:
           name: behavior-mixed-${{ matrix.case }}-mixed
           path: .base-evidence/behavior-mixed-${{ matrix.case }}-mixed
           run-id: ${{ env.BASE_EVIDENCE_RUN }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        if: env.FALLBACK_EVIDENCE_RUN != ''
+        continue-on-error: true
+        with:
+          name: cosmos-candidate
+          path: .fallback-evidence/cosmos-candidate
+          run-id: ${{ env.FALLBACK_EVIDENCE_RUN }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        if: env.FALLBACK_EVIDENCE_RUN != ''
+        continue-on-error: true
+        with:
+          name: behavior-mixed-${{ matrix.case }}-mixed
+          path: .fallback-evidence/behavior-mixed-${{ matrix.case }}-mixed
+          run-id: ${{ env.FALLBACK_EVIDENCE_RUN }}
           github-token: ${{ github.token }}
       - name: Reuse only complete real-host evidence with identical dependencies
         id: reuse
