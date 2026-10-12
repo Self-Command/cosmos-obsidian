@@ -9,7 +9,7 @@ const cli=(args,input)=>new Promise((resolve,reject)=>{
 const content=JSON.parse(await readFile('tests/fixtures/travel-content.json','utf8'));
 const opened=await cli(['draft','open','--input','-'],{entity:'record',category:'游记',name:'合成验收游记',attributes:{date:'2026-10-10'}});assert.equal(opened.state,'needs-content',JSON.stringify(opened));assert.equal(opened.contentContract.fields.length,6);
 const target=path.join(binding.vaultPath,'地球/地层/游记/合成验收游记.md');await assert.rejects(readFile(target));
-const first=await cli(['draft','preview','--draft',opened.draftId,'--input','-'],content);assert.equal(first.state,'review-ready',JSON.stringify(first));
+const first=await cli(opened.next.arguments,content);assert.equal(first.state,'review-ready',JSON.stringify(first));
 const revised=structuredClone(content);revised.fields.s2+='\n\n第二版补充了这份材料作为合成测试的用途。';
 const second=await cli(['draft','preview','--draft',opened.draftId,'--input','-'],revised);assert.equal(second.state,'review-ready',JSON.stringify(second));assert.equal(second.revision,2);
 const superseded=await cli(['review','commit','--review',first.reviewId,'--confirm']);assert.equal(superseded.error.code,'INVALID_STATE');await assert.rejects(readFile(target));

@@ -5,6 +5,7 @@ import type { Obsidian } from '../adapters/obsidian.js';
 import type { EntityPreparation } from '../runtime/entities.js';
 import { Reviews } from './review.js';
 import type { Plan } from './types.js';
+import { contentSchema } from '../registry/schema.js';
 interface Draft { id: string; bindingId: string; revision: number; preparation: EntityPreparation; preparationHash: string; reviewId?: string }
 export class Drafts {
   store: Store;
@@ -15,7 +16,7 @@ export class Drafts {
     const preparation = result.result as EntityPreparation, id = newId('d');
     const draft: Draft = { id, bindingId: this.adapter.config.bindingId, revision: 0, preparation, preparationHash: fingerprint(preparation) };
     await this.store.write('drafts', id, draft);
-    return { ok: true, state: 'needs-content', draftId: id, contentContract: { title: preparation.title, fields: preparation.template.fields }, facts: preparation.facts, missing: [], next: { command: 'draft preview', draftId: id } };
+    return { ok: true, state: 'needs-content', draftId: id, contentContract: { title: preparation.title, fields: preparation.template.fields }, facts: preparation.facts, missing: [], next: { command: 'draft preview', draftId: id, arguments: ['draft', 'preview', '--draft', id, '--input', '-'], inputSchema: contentSchema } };
   }
   async preview(id: string, content: unknown) {
     const release = await this.store.lock(this.adapter.config.bindingId, newId('e'));

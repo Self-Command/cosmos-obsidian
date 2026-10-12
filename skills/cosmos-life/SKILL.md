@@ -24,6 +24,6 @@ PowerShell 输入的起止标记分别在独立行，结束标记不能紧接 JS
 
 已有库外 UTF-8 JSON 文件可用 `--input <文件>`。tags 和 relations 在顶层，状态省略时采用当前默认值。周期用 `{"action":"journal.create","period":"day","date":"2026-10-10"}`；period 可为 day/week/month/quarter/year。draft open 读取当前模板并返回写作结构；直接调用该入口，无需扫描目录、阅读脚本/绑定配置或重读已经加载的本正文。
 
-按返回 `contentContract.fields` 的 id 填写 `{"fields":{"id":"完整 Markdown"}}`；保留字段的表头、标签和固定查询，具体内容遵循 guidance。只写这些章节的正文，代码负责总标题和属性。随后用同样的标准输入方式运行 `draft preview --draft <draftId> --input -`。
+按返回 `contentContract.fields` 的 id 填写 `{"fields":{"id":"完整 Markdown"}}`；保留字段的表头、标签和固定查询，具体内容遵循 guidance。只写这些章节的正文，代码负责总标题和属性。后续完整参数在返回的 `next.arguments`，正文 JSON 符合 `next.inputSchema`，继续通过标准输入交给 `draft preview --draft <draftId> --input -`。PowerShell 中两个命令均先写 `@'` 并换行，再放 JSON，最后用独占一行的 `'@` 接管道给 node。
 
 根据返回的 summary 展示实际目录、正文要点和 `preview.path` 全文链接，并结束当前回复，等待用户审阅该具体预览后的确认。创建请求只授权准备方案；不能把它或模型自己的“现在提交”当作预览批准。这是用户已确定的知识库写入流程。收到对该预览的确认后一次 `review commit --review <reviewId> --confirm`，它已执行并读回复检，返回 steps 的 absolutePath 可直接链接成品。取消用 `review cancel`。中断后用原 review/execution ID 查询和复检，沿用已有批准，避免重复落盘。
