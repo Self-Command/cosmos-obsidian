@@ -3,6 +3,7 @@ import { CosmosError } from '../errors.js';
 const ajv = new Ajv({ allErrors: true, strict: true, allowUnionTypes: true });
 export const object = (properties: Record<string, unknown>, required: string[] = []) => ({ type: 'object', properties, required, additionalProperties: false });
 export const text = { type: 'string', minLength: 1 };
+export const contentSchema = object({fields:{type:'object',additionalProperties:{anyOf:[{type:'string'},object({markdown:{type:'string'},title:text},['markdown'])]}}},['fields']);
 export function validate<T>(schema: object, value: unknown): T {
   const check = ajv.compile(schema);
   if (!check(value)) {

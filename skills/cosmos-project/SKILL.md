@@ -8,6 +8,6 @@ compatibility: Node 24、已绑定的 Obsidian CLI；任务需要 TaskNotes。
 
 用 `node "<本技能实际目录>/scripts/cosmos.mjs"`。新项目先 `draft open --input <库外 UTF-8 JSON>`，例如 `{"entity":"project","name":"周末课程","relations":{"area":"实际领域的精确路径"}}`；没有领域就省略 relations。从构想推进先 `query actions` 确认当前动作，再用相应 `entity.evolve` 草稿。
 
-按返回字段和 guidance 写实质内容，用 `draft preview --draft <draftId> --input <正文 JSON>`。项目及任务等多个文件用一个 `change preview` 方案，actions 分别包含 entity.create/task.create 与已填正文；新项目关系由代码解析。需要字段时按命令读取 `help change preview`。
+按返回字段和 guidance 写实质内容，用 `draft preview --draft <draftId> --input <正文 JSON>`，输入为 `{"fields":{"实际字段id":"Markdown正文"}}`。项目及任务等多个文件用一个 `change preview` 方案：`{"actions":[{"action":"entity.create","entity":"project","name":"项目名","content":{"fields":{"实际字段id":"Markdown正文"}}},{"action":"task.create","title":"任务名","relations":{"project":"项目名"},"details":"具体行动和完成标准"}]}`。正文填满 draft open 返回的实际字段，任务关系由代码解析，不必另加载任务技能。用标准输入或库外 UTF-8 JSON；需要其他动作格式时读取 `help change preview`。
 
 展示精确文件组合、关系、正文要点和 `preview.path` 全文链接。审阅批准后一次 `review commit --review <reviewId> --confirm`；它自动复检。部分失败说明已完成和余项，查询原执行，不能重复创建整个组合。

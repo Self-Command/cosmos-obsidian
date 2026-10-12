@@ -4,7 +4,7 @@ import { entitySchema } from './entities.js';
 import { journalSchema } from './periods.js';
 import { writingSchema } from './publication.js';
 const creation = (schema: any, action: string) => ({ ...schema, properties: { ...schema.properties, action: { const: action } }, required: [...schema.required,'action'] });
-export const evolveSchema = object({ action: { const: 'entity.evolve' }, path: text, transition: text, name: text, folder: text, category: text, attributes: entitySchema.properties.attributes, relations: entitySchema.properties.relations, tags: entitySchema.properties.tags, content: { type: 'object' }, evidence: object({ url: text, publishedDate: text, description: text }, ['url','publishedDate','description']) }, ['action','path','transition']);
+export const evolveSchema = object({ action: { const: 'entity.evolve' }, path: text, transition: text, name: text, folder: text, category: text, attributes: entitySchema.properties.attributes, relations: entitySchema.properties.relations, tags: entitySchema.properties.tags, content: entitySchema.properties.content, evidence: object({ url: text, publishedDate: text, description: text }, ['url','publishedDate','description']) }, ['action','path','transition']);
 export const fileChangeSchema = { oneOf: [
   object({ action: { const: 'content.patch' }, path: text, find: text, replace: { type: 'string' } }, ['action','path','find','replace']),
   object({ action: { const: 'relations.patch' }, path: text, relations: object({ project: { type: ['string','null'] }, area: { type: ['string','null'] } }) }, ['action','path','relations']),

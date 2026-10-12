@@ -1,9 +1,9 @@
-import { object, text, validate } from '../registry/schema.js';
+import { object, text, validate, contentSchema } from '../registry/schema.js';
 import { name, notePath } from './identity.js';
 import { validDate } from './dates.js';
 import { tags } from './tasks.js';
 import { CosmosError } from '../errors.js';
-export const entitySchema = object({ entity: text, category: text, name: text, folder: text, variant: { enum: ['bookStudy'] }, attributes: { type: 'object', additionalProperties: { type: ['string','number','boolean','array','null'] } }, relations: object({ project: text, area: text }), tags: { type: 'array', items: text, uniqueItems: true }, content: { type: 'object' } }, ['name']);
+export const entitySchema = object({ entity: text, category: text, name: text, folder: text, variant: { enum: ['bookStudy'] }, attributes: { type: 'object', additionalProperties: { type: ['string','number','boolean','array','null'] } }, relations: object({ project: text, area: text }), tags: { type: 'array', items: text, uniqueItems: true }, content: contentSchema }, ['name']);
 export function resolveEntity(schema: any, raw: unknown) {
   const input = validate<any>(entitySchema, raw);
   if (!input.entity && !input.category) throw new CosmosError('NEEDS_INPUT', '需要实体或唯一已登记分类。', { field: 'entity' });
