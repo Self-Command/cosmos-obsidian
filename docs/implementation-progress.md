@@ -100,3 +100,11 @@
 - 架构验收 run 38215563361 / 2c68ce392c08310ad3939fe24b3ffaa9bfbedbae 的编译、双平台各78功能用例/各10技能安装、原生任务9/实体4/业务36及发布23通过。plan/tasks/create 各3场景通过；project构想误用project模板，组合重复预览、成果错误标题及无路径查询使两例未完成；learn关联认知通过，书籍研读与检验因属性猜测、完整路径用于title和缺少输入未完成。修订项目/学习技能的实体与输入说明，保留全部失败。按用户减少重复的要求实现可审计的未受影响技能证据沿用：运行时、场景、环境、发现与技能字节均相同且未加载改动技能，原报告身份和字节保留；新增拒绝非等价证据的检查。其余技能继续固定场景验收，当前修订待Actions。
 
 - 架构流程复测 [38224640960](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38224640960)，源码 `62ddc1ec2407782f584b3d11a69879c959d05a34`：编译、双平台功能/安装、原生、真实合成远端发布全部通过；tasks/learn/evolve/files/amytis/check 各三个场景完整通过。plan 组合提前安排成果文件、project 在审阅前改稿被旧单预览断言挡住、life 日周 JSON 括号错误未恢复；create 前两场景通过，第三次网关拒绝。发行门禁拒绝，失败报告保留。收尾修订仅处理这些实际缺口及帮助路由名称的依赖识别，按原 30 场景范围验收；未受影响的完整报告必须经过原始来源依赖证明。详见 research/architecture-retest-62ddc1e-20261012.md。
+
+## D6 完成与 D7 本地退役
+
+2026-10-12，候选 `d7ca68a26eb0d13fb253a891873c56b23420659d` / [38229786099](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38229786099) 的编译、双平台各96功能/各10安装、真实原生任务9/实体4/业务36、发布23和十技能各3场景均通过。原汇总 job 漏装 yaml 而失败，保留该失败；补装依赖后 [38232747805](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38232747805) 检查18个来源job成功、原包全部哈希与原报告，原验证器18组通过，releaseReady:true，没有重跑模型场景。
+
+已安装原候选，迁入11条不可执行历史审计；十入口与20个宿主链接核验通过。隐藏旧执行器时的真实只读查询通过后，精确清理12个旧目录及4个临时宿主配置副本，停止2个旧MCP进程。业务与其他技能保护核查通过，旧目录删除后新入口实际能力查询成功。旧checkout在安装前已由外部操作移除，报告明确区分。
+
+远程 `Self-Command/obsidian-cosmos-skills` 的实际 DELETE 返回403，缺少delete_repo scope，旧远程仍归档存在。整个任务仅余这一步；最终验收见 research/accepted-release-d7ca68a-20261012.md，退役结果见 retirement-report-20261012.md。
