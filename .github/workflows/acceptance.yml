@@ -238,6 +238,7 @@ jobs:
         with: {persist-credentials: false}
       - uses: actions/setup-node@v4
         with: {node-version: '24.21.0'}
+      - run: npm ci --ignore-scripts
       - uses: actions/download-artifact@v4
         with: {path: evidence/}
       - name: Require complete reports and identical candidate identity from every layer
