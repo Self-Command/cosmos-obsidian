@@ -86,3 +86,5 @@
 - full [38200347484](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38200347484)，候选 91e80c2336efb50b33fb9826369361be4403ffba：功能、原生、发布、双平台安装已通过；两组 Codex 任务三样本均未完整达标。自然任务一例猜测 todo 状态，预载一例把 project/domain 填到顶层；技能补充实际默认值与 relations 结构。其余失败包含模型墙钟超限及网关断流，CLI 调用均小于 0.4 秒，不能据此宣布速度通过。下一轮模型 job 串行调度，减少同一网关的并发压力，固定模型、三独立会话、全部时间/响应门槛和失败记录保持。当前完整运行其余会话仍在执行，安装及退役尚未启动。
 
 - 旧候选预载游记报告显示一次 PowerShell 起始标记紧接 JSON 导致多余工具回合、一次未传入正文、一次漏掉 --input。draft open 新增 next.arguments 和共享的 next.inputSchema，原生长游记测试实际使用返回参数；现实技能明确正文继续通过标准输入，并保留 PowerShell 换行要求。待下一同包完整 Actions 验收，本地未运行测试。
+
+- 串行 full [38202235723](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38202235723)，候选 56384888c23e4f8156cbee343e0c7c6ec5cfb993：编译、双平台 foundation/installation、native/publication 已通过。Codex 自然任务 3/3 含一例通过（规划69秒/提交33秒），另两例为擅填 todo 后重试、规划91秒及提交网关502/invalid_prompt。已证实新说明确实加载；默认状态说明前移到入口首段，继续拒绝未知目录值，不添加猜测映射。该候选未满足发行门槛，全部失败保留。下一候选合并草稿参数修订后再验收。
