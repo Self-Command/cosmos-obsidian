@@ -108,3 +108,5 @@
 已安装原候选，迁入11条不可执行历史审计；十入口与20个宿主链接核验通过。隐藏旧执行器时的真实只读查询通过后，精确清理12个旧目录及4个临时宿主配置副本，停止2个旧MCP进程。业务与其他技能保护核查通过，旧目录删除后新入口实际能力查询成功。旧checkout在安装前已由外部操作移除，报告明确区分。
 
 远程 `Self-Command/obsidian-cosmos-skills` 的实际 DELETE 返回403，缺少delete_repo scope，旧远程仍归档存在。整个任务仅余这一步；最终验收见 research/accepted-release-d7ca68a-20261012.md，退役结果见 retirement-report-20261012.md。
+
+2026-10-12 18:48（Asia/Shanghai），用户补充 GitHub delete_repo 权限后，精确旧远程 `Self-Command/obsidian-cosmos-skills` 的 DELETE 返回204，随后的GET返回404；新仓库身份与访问核对正常。原403诊断保留，退役清单与最终报告已更新。本地及远程退役全部完成，D1–D7重建任务完成；此次没有修改已安装候选或重新运行验收。
