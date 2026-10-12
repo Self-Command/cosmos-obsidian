@@ -32,7 +32,9 @@ async function prepareSample(index){
   delete env.PUBLICATION_TOKEN;delete env.CHATGPT_API_KEY;delete env.OPENAI_API_KEY;
   let session;
   if(host==='codex')await fs.writeFile(path.join(configRoot,'config.toml'),'model = "gpt-6-luna"\nmodel_provider = "evaluation"\nmodel_reasoning_effort = "xhigh"\nweb_search = "disabled"\n[features]\nmulti_agent = false\n[model_providers.evaluation]\nname = "Configured evaluation gateway"\nbase_url = "https://4router.net/v1"\nenv_key = "COSMOS_EVAL_KEY"\nwire_api = "responses"\nrequest_max_retries = 1\nstream_max_retries = 1\nstream_idle_timeout_ms = 90000\n');
-  const sample={index,name:(kind==='task'?'补交驾校费用':kind==='travel'?'雨后山城一日游记':'业务流程')+'-'+host+'-'+activation+'-'+process.env.GITHUB_RUN_ID+'-'+index,turns:[],issues:[],passed:false};report.samples.push(sample);await save();
+  // Keep host labels in metrics rather than user-supplied business titles.
+  // Each job has its own real vault; run/sample IDs provide sufficient uniqueness.
+  const sample={index,name:(kind==='task'?'补交驾校费用':kind==='travel'?'雨后山城一日游记':'业务流程')+'-'+process.env.GITHUB_RUN_ID+'-'+index,turns:[],issues:[],passed:false};report.samples.push(sample);await save();
   async function turn(prompt,phase,fault={}){
     const injected=phase==='plan'&&activation==='injected',row={phase,prompt,startedAt:new Date().toISOString(),tools:[],responses:[],injected};sample.turns.push(row);await save();console.log(JSON.stringify({host,kind,activation,index,phase,state:'started'}));
     const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),phase==='plan'?240000:180000),started=performance.now();

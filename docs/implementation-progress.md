@@ -77,3 +77,5 @@
 - 新发行汇总检查每层的 run/attempt、候选清单、报告实际用例、单样本速度及所有必需 job；missing/skipped/empty/smoke 均拒绝发行。D6 尚未闭合，旧安装保持冻结。
 - smoke [38192148322](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38192148322) 暴露官方 app-server sandbox 枚举拼写错误；已按原生诊断修正。后续 [38192435862](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38192435862) 的 Codex 游记出现 gateway streaming 在 response.completed 前断开，保留基础设施失败。Claude 任务实际预览/提交成功，但相对日期缺省与额外加载/读回导致规划不合格。
 - 新候选改为按预览时区的当前日期一次换算相对日期，返回实际固定属性/短正文或长文提纲，并直接支持既有 stdin 入口示例。原生技能附件使用官方发现清单中的实际路径；Claude 报告保存原生扩展的合成上下文，核对 slash 加载是否发生。调整不改变模型、响应计数或时间门槛，待 Actions 验证。
+- run [38193572666](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38193572666)，候选 `cb6ad2cadab7e2f83076c65e80edb31d7412e724`：所有功能/发行/安装层通过；Codex 预载任务（规划32秒、提交14秒、各2响应）和 Claude 自然任务（29秒/15秒、各3响应）通过，Claude 四组完整流程通过。其余模型速度/探索项未通过；Codex 流程收到 gateway 502/invalid_prompt，不计为能力成功。
+- 真实失败显示自然发现后读脚本、游记提交后为成品链接搜索工作区、普通创建的宽描述误选。技能明确代码负责当前模板与字段、缩小普通创建发现范围，结果新增实际知识库 absolutePath。测试标题移除宿主/激活标签，技术身份仍保留在报告；合成业务事实、所有技能发现和速度门槛保持。

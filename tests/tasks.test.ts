@@ -49,7 +49,7 @@ describe('review execution state', () => {
     const root=await mkdtemp(path.join(os.tmpdir(),'cosmos-review-'));cleanup.push(root);const store=new Store(root);
     let writes=0;
     const plan:Plan={version:1,bindingId:'bound',steps:[{action:'task.create',path:'太阳/核聚变/任务.md',data:{title:'任务'},expected:{body:'实际正文'}}],dependencies:[],environment:{},warnings:[]};
-    const adapter:any={config:{bindingId:'bound'},store,request:async(action:string,input:any,id:string)=>{
+    const adapter:any={config:{bindingId:'bound',vaultPath:path.join(root,'vault')},store,request:async(action:string,input:any,id:string)=>{
       if(action==='task.prepare')return {state:'succeeded',result:plan};
       if(action==='review.execute'){writes++;if(mode==='uncertain')throw new CosmosError('RESULT_UNCERTAIN','timeout',{},5);return {id,bindingId:'bound',state:'succeeded',result:{state:'succeeded',verified:true,steps:[{index:0,state:'succeeded',verified:true,path:plan.steps[0]!.path,action:'task.create'}]}};}
       if(action==='execution.verify')return {id,bindingId:'bound',state:'succeeded',result:{state:'succeeded',verified:true,steps:[{index:0,state:'succeeded',verified:true,path:plan.steps[0]!.path,action:'task.create'}]}};
@@ -66,6 +66,7 @@ describe('review execution state', () => {
     const s=await service(),preview=await s.reviews.preview('task.prepare',{});
     const first=await s.reviews.commit(preview.reviewId,true),second=await s.reviews.commit(preview.reviewId,true);
     expect(second.executionId).toBe(first.executionId);expect(s.writes()).toBe(1);
+    expect('steps' in first&&first.steps![0]!.absolutePath).toBe(path.join(s.store.root,'vault','太阳/核聚变/任务.md'));expect('steps' in second&&second.steps![0]!.absolutePath).toBe((await s.reviews.status(first.executionId!)).steps[0]!.absolutePath);
     const next=await s.reviews.preview('task.prepare',{});await s.store.atomic(s.store.file('previews',next.reviewId),'edited');
     await expect(s.reviews.commit(next.reviewId,true)).rejects.toThrow();expect(s.writes()).toBe(1);
   });

@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import { Store, newId, type Review } from '../state/store.js';
 import { fingerprint } from '../domain/identity.js';
 import { CosmosError } from '../errors.js';
@@ -12,10 +13,10 @@ export function previewMarkdown(plan: Plan) {
   }
   return '# Cosmos 完整变更预览\n\n' + plan.steps.map((step, index) => `## ${index + 1}. ${step.action}\n\n目标：${step.path}\n\n` + (step.source ? '来源：' + step.source + '\n\n' : '') + (step.expected.absent ? '回收到系统废纸篓，实际回收后核对来源已移出。\n\n原文：\n\n' + noteBytes(step.data.originalProperties,step.data.originalBody) : step.expected.body !== undefined ? noteBytes(step.expected.properties ?? {}, step.expected.body) : '变更：\n\n' + JSON.stringify(step.data, null, 2)) + (step.data.links?.length ? '\n\n引用更新（Obsidian 原生改名服务）：\n' + step.data.links.map((link:any) => '- ' + link.path + '：' + link.originalLinks.join('、') + ' → ' + step.path.replace(/\.md$/,'') + '（' + link.count + '处）').join('\n') : '')).join('\n\n') + '\n\n依赖：\n' + plan.dependencies.map(x => '- ' + x.path + '（' + x.kind + '）').join('\n') + '\n' + plan.warnings.map(x => '- ' + x).join('\n');
 }
-export function planSummary(plan: Plan) {
+export function planSummary(plan: Plan, vaultPath?:string) {
   return { changes: plan.steps.map(step => {
     const body=step.expected.body;
-    return { action:step.action, path:step.path, source:step.source, properties:step.expected.properties,
+    return { action:step.action, path:step.path, absolutePath:vaultPath?path.join(vaultPath,...step.path.split('/')):undefined, source:step.source, properties:step.expected.properties,
       body:body!==undefined&&body.length<=2400?body:undefined,
       content:body===undefined?undefined:{characters:body.length,headings:body.split('\n').filter(line=>/^#{1,6} /.test(line)).map(line=>line.replace(/^#{1,6} /,''))},
       recycle:step.expected.absent||undefined };
@@ -34,7 +35,7 @@ export class Reviews {
     const review: Review = { id, bindingId: this.adapter.config.bindingId, state: 'review-ready', plan, planHash: fingerprint(plan), preview, previewHash: fingerprint(preview), createdAt: new Date().toISOString() };
     await this.store.write('reviews', id, review);
     await this.store.atomic(this.store.file('previews', id), preview);
-    return { ok: true, state: 'review-ready', reviewId: id, summary:planSummary(plan), preview: { path: this.store.file('previews', id), format: 'markdown' }, next: { command: 'review commit', reviewId: id } };
+    return { ok: true, state: 'review-ready', reviewId: id, summary:planSummary(plan,this.adapter.config.vaultPath), preview: { path: this.store.file('previews', id), format: 'markdown' }, next: { command: 'review commit', reviewId: id } };
   }
   async show(id: string) {
     const review = await this.store.read<Review>('reviews', id); this.store.assertReview(review, this.adapter.config.bindingId);
@@ -89,12 +90,13 @@ export class Reviews {
     Object.assign(execution, result, { completedAt: new Date().toISOString() });
     if (result.error?.code === 'REVIEW_STALE') review.state = 'stale'; else review.state = execution.state;
     await this.store.write('executions', execution.id, execution); await this.store.write('reviews', review.id, review);
-    return { ok: execution.state === 'succeeded' && execution.verified, state: execution.state, executionId: execution.id, verified: execution.verified, steps: execution.steps, error: execution.error };
+    return { ok: execution.state === 'succeeded' && execution.verified, state: execution.state, executionId: execution.id, verified: execution.verified, steps: this.locations(execution), error: execution.error };
   }
+  private locations(execution:Execution){return execution.steps.map(step=>({...step,absolutePath:this.adapter.config.vaultPath?path.join(this.adapter.config.vaultPath,...step.path.split('/')):undefined}));}
   async status(id: string) {
     const execution = await this.store.read<Execution>('executions', id);
     if (execution.bindingId !== this.adapter.config.bindingId) throw new CosmosError('WRONG_VAULT', '执行属于不同知识库。', {}, 3);
-    return { ok: execution.state === 'succeeded' && execution.verified, state: execution.state, executionId: id, verified: execution.verified, steps: execution.steps, error: execution.error, next: ['executing','uncertain'].includes(execution.state) ? { command: 'execution verify', executionId: id } : undefined };
+    return { ok: execution.state === 'succeeded' && execution.verified, state: execution.state, executionId: id, verified: execution.verified, steps: this.locations(execution), error: execution.error, next: ['executing','uncertain'].includes(execution.state) ? { command: 'execution verify', executionId: id } : undefined };
   }
   async verify(id: string) {
     const execution = await this.store.read<Execution>('executions', id);

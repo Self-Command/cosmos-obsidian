@@ -14,8 +14,8 @@ node "<本技能实际目录>/scripts/cosmos.mjs" task preview --input - <<'JSON
 JSON
 ```
 
-PowerShell 用单引号 here-string `@' … '@` 管道输入同一命令；已有库外 UTF-8 JSON 文件可用 `--input <文件>`。宿主已加载的本正文与该入口足以办理创建。
+PowerShell 用单引号 here-string `@' … '@` 管道输入同一命令；已有库外 UTF-8 JSON 文件可用 `--input <文件>`。当前任务模板、字段映射与规则由 task preview 读取、校验并固定。模型直接把事实交给该入口，不需要扫描目录、阅读脚本/绑定配置或再读已经加载的本正文；以结构化返回的属性与正文展示结果。
 
 按本次事实填写；普通优先级可省略。relativeDays 的基准默认为预览时指定时区的今天，代码一次换算并保存；明确历史基准可填 baseDate。查询用 `query tasks --input <JSON>`；更新与实例操作用 `change preview`，需要格式时用 `help change preview` 获取该命令的实际 Schema。实例和整个系列的选择不清楚时先澄清。
 
-成功后根据返回的 summary 展示实际日期、关系、正文要点和 `preview.path` 全文链接。用户审阅并批准后运行一次 `review commit --review <reviewId> --confirm`，它已经执行并复检。取消用 `review cancel`；中断或结果不确定用原 `executionId` 查询 `execution status/verify`，沿用已有批准，不重建任务。
+成功后根据返回的 summary 展示实际日期、关系、正文要点和 `preview.path` 全文链接。用户审阅并批准后运行一次 `review commit --review <reviewId> --confirm`，它已经执行并复检，steps 的 absolutePath 可直接链接成品。取消用 `review cancel`；中断或结果不确定用原 `executionId` 查询 `execution status/verify`，沿用已有批准，不重建任务。
