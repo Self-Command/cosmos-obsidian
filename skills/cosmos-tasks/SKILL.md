@@ -14,7 +14,15 @@ node "<本技能实际目录>/scripts/cosmos.mjs" task preview --input - <<'JSON
 JSON
 ```
 
-PowerShell 用单引号 here-string `@' … '@` 管道输入同一命令；已有库外 UTF-8 JSON 文件可用 `--input <文件>`。当前任务模板、字段映射与规则由 task preview 读取、校验并固定。模型直接把事实交给该入口，不需要扫描目录、阅读脚本/绑定配置或再读已经加载的本正文；以结构化返回的属性与正文展示结果。
+PowerShell 的开始标记后换行，结束标记必须独占下一行，不能接在 JSON 的 `}` 后面：
+
+```powershell
+@'
+{"title":"补交驾校费用","schedule":{"relativeDays":1,"time":"10:30","timeZone":"Asia/Shanghai"},"estimateMinutes":60,"priority":{"rank":"highest"},"details":"携带缴费通知，核对金额，付款后保存收据。"}
+'@ | node "<本技能实际目录>/scripts/cosmos.mjs" task preview --input -
+```
+
+已有库外 UTF-8 JSON 文件可用 `--input <文件>`。当前任务模板、字段映射与规则由 task preview 读取、校验并固定。模型直接把事实交给该入口，不需要扫描目录、阅读脚本/绑定配置或再读已经加载的本正文；以结构化返回的属性与正文展示结果。
 
 按本次事实填写；普通优先级可省略。relativeDays 的基准默认为预览时指定时区的今天，代码一次换算并保存；明确历史基准可填 baseDate。查询用 `query tasks --input <JSON>`；更新与实例操作用 `change preview`，需要格式时用 `help change preview` 获取该命令的实际 Schema。实例和整个系列的选择不清楚时先澄清。
 

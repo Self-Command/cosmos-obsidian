@@ -14,7 +14,15 @@ node "<本技能实际目录>/scripts/cosmos.mjs" draft open --input - <<'JSON'
 JSON
 ```
 
-PowerShell 用单引号 here-string `@' … '@` 管道输入；已有库外 UTF-8 JSON 文件可用 `--input <文件>`。tags 和 relations 在顶层，状态省略时采用当前默认值。周期用 `{"action":"journal.create","period":"day","date":"2026-10-10"}`；period 可为 day/week/month/quarter/year。draft open 读取当前模板并返回写作结构；直接调用该入口，无需扫描目录、阅读脚本/绑定配置或重读已经加载的本正文。
+PowerShell 输入的起止标记分别在独立行，结束标记不能紧接 JSON 的 `}`：
+
+```powershell
+@'
+{"category":"游记","name":"山城雨后的一天","tags":["旅行"],"attributes":{"date":"2026-10-10"}}
+'@ | node "<本技能实际目录>/scripts/cosmos.mjs" draft open --input -
+```
+
+已有库外 UTF-8 JSON 文件可用 `--input <文件>`。tags 和 relations 在顶层，状态省略时采用当前默认值。周期用 `{"action":"journal.create","period":"day","date":"2026-10-10"}`；period 可为 day/week/month/quarter/year。draft open 读取当前模板并返回写作结构；直接调用该入口，无需扫描目录、阅读脚本/绑定配置或重读已经加载的本正文。
 
 按返回 `contentContract.fields` 的 id 填写 `{"fields":{"id":"完整 Markdown"}}`；保留字段的表头、标签和固定查询，具体内容遵循 guidance。只写这些章节的正文，代码负责总标题和属性。随后用同样的标准输入方式运行 `draft preview --draft <draftId> --input -`。
 
