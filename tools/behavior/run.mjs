@@ -48,7 +48,15 @@ async function prepareSample(index){
     const input=injected&&actualHost==='claude'?'/'+selected+' '+prompt:prompt;
     try{
       if(actualHost==='codex'){
-        session=await codexTurn({env,workspace,context,session,prompt:input,skill:injected?{name:selected,path:skillPath}:undefined,signal:controller.signal,row,onSession:id=>session=id});
+        const previousSession=session;
+        const nativeTurn=resume=>codexTurn({env,workspace,context,session:resume,prompt:input,skill:injected?{name:selected,path:skillPath}:undefined,signal:controller.signal,row,onSession:id=>session=id});
+        try{session=await nativeTurn(session);}catch(error){
+          // One bounded transport retry before any host tool or business command.
+          // Keep its failure evidence; never retry a partially executed workflow.
+          if(row.tools.length||controller.signal.aborted||!/502 Bad Gateway|serverOverloaded|stream.*(?:disconnect|closed)/i.test(error.message))throw error;
+          row.infrastructureAttempts=[{sessionId:session,error:error.message,elapsedMs:performance.now()-started,tools:0}];
+          session=await nativeTurn(previousSession);
+        }
       }else {
         const {query}=await import('./node_modules/@anthropic-ai/claude-agent-sdk/sdk.mjs');
         const stream=query({prompt:input,options:{cwd:workspace,resume:session,model:'gpt-6-luna',effort:'xhigh',maxTurns:20,persistSession:true,settingSources:['user'],env,abortController:controller,tools:['Read','Glob','Grep','Skill','Write','Bash'],permissionMode:'bypassPermissions',allowDangerouslySkipPermissions:true,systemPrompt:{type:'preset',preset:'claude_code',append:context},mcpServers:{}}});

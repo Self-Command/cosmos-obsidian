@@ -8,6 +8,14 @@ compatibility: Node 24、已绑定的 Obsidian CLI。
 
 用 `node "<本技能实际目录>/scripts/cosmos.mjs"`。创建用 `draft open --input <库外 UTF-8 JSON>`，明确 entity/category、name 和真实来源属性；书籍研读使用 entity=study、variant=bookStudy。基于已有实体创建关联研读/认知/检验时先 `query actions`，按返回的当前合法动作打开草稿。
 
+`--input` 接收文件路径或 `-`，不接收内联 JSON 参数。PowerShell 标准输入示例，起止标记各占一行：
+
+```powershell
+@'
+{"entity":"study","name":"本次书籍研读","variant":"bookStudy"}
+'@ | node "<本技能实际目录>/scripts/cosmos.mjs" draft open --input -
+```
+
 把实际模板 `contentContract.fields` 的各章节填成 `{"fields":{"id":"完整 Markdown"}}`，保留表头、标签和查询，执行 `draft preview --draft <draftId> --input <正文 JSON>`。多份关联文件用一次 `change preview`，不额外建立不需要的课题或项目。
 
 展示来源、判断边界、实际关系和 `preview.link` 实际全文链接。审阅批准后一次 `review commit --review <reviewId> --confirm`，自动复检。取消或中断沿用原 ID；结果不确定先 `execution verify`，不重复写入。

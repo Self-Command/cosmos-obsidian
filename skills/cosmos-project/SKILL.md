@@ -8,6 +8,16 @@ compatibility: Node 24、已绑定的 Obsidian CLI；任务需要 TaskNotes。
 
 用 `node "<本技能实际目录>/scripts/cosmos.mjs"`。新项目先 `draft open --input <库外 UTF-8 JSON>`，例如 `{"entity":"project","name":"周末课程","relations":{"area":"实际领域的精确路径"}}`；没有领域就省略 relations。从构想推进先 `query actions` 确认当前动作，再用相应 `entity.evolve` 草稿。
 
+`--input` 接收文件路径或 `-`，不接收内联 JSON 参数。PowerShell 标准输入示例，起止标记各占一行：
+
+```powershell
+@'
+{"entity":"project","name":"周末课程"}
+'@ | node "<本技能实际目录>/scripts/cosmos.mjs" draft open --input -
+```
+
+任务无日期时省略 schedule/due，普通优先级省略 priority，没有归属时省略 relations；未提供的可选值不填 null。
+
 按返回字段和 guidance 写实质内容，保留表头与标签；未知信息在单元格说明原因，没有日期可写“尚未排期”，不留空单元格。用 `draft preview --draft <draftId> --input <正文 JSON>`，输入为 `{"fields":{"实际字段id":"Markdown正文"}}`。项目及任务等多个文件用一个 `change preview` 方案：`{"actions":[{"action":"entity.create","entity":"project","name":"项目名","content":{"fields":{"实际字段id":"Markdown正文"}}},{"action":"task.create","title":"任务名","relations":{"project":"项目名"},"details":"具体行动和完成标准"}]}`。正文填满 draft open 返回的实际字段，任务关系由代码解析，不必另加载任务技能。用标准输入或库外 UTF-8 JSON；需要其他动作格式时读取 `help change preview`。
 
 展示精确文件组合、关系、正文要点和 `preview.link` 实际全文链接。审阅批准后一次 `review commit --review <reviewId> --confirm`；它自动复检。部分失败说明已完成和余项，查询原执行，不能重复创建整个组合。

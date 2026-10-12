@@ -8,6 +8,14 @@ compatibility: Node 24、已绑定的 Obsidian CLI 与库内生命周期服务�
 
 入口：`node "<本技能实际目录>/scripts/cosmos.mjs"`。对精确目标执行 `query actions --input <库外 UTF-8 JSON>`，输入 `{"path":"实际相对路径.md"}`；必要时用 `query notes` 读取正文。使用返回的动作 id 作为 transition，不猜阶段名称。
 
+`--input` 接收文件路径或 `-`，不接收内联 JSON 参数。PowerShell 标准输入示例，替换为用户的精确路径，起止标记各占一行：
+
+```powershell
+@'
+{"path":"星云/分子云/速记/现场想法.md"}
+'@ | node "<本技能实际目录>/scripts/cosmos.mjs" query actions --input -
+```
+
 需要正文时 `draft open` 输入 `{"action":"entity.evolve","path":"实际相对路径.md","transition":"当前动作 id"}`，按返回字段填正文再 `draft preview`。无需新增正文的动作可直接 `change preview`；具体 Schema 用 `help change preview` 获取。
 
 展示原文件与新文件的关系、实际变化、资格说明和 `preview.link` 实际全文链接。审阅批准后一次 `review commit --review <reviewId> --confirm`。中断查询原 execution，沿用批准；部分完成不全范围回滚或重新推进。

@@ -8,6 +8,14 @@ compatibility: Node 24、已绑定的 Obsidian CLI、库内发布服务与受控
 
 用 `node "<本技能实际目录>/scripts/cosmos.mjs"`。原创写作用 `draft open`，action=writing.create，values 明确 language、kind、slug、date、title、permission、scope；按当前模板字段填文再 `draft preview`。需要发布输入结构时用 `help publish preview`；已存在内容的登记或公开副本用 `publish preview` 的 register/copy。
 
+`--input` 接收文件路径或 `-`，不接收内联 JSON 参数。PowerShell 标准输入示例，所有值按本次材料填写，起止标记各占一行：
+
+```powershell
+@'
+{"action":"writing.create","name":"停留之后","values":{"language":"zh","kind":"post","slug":"after-a-pause","date":"2026-10-10","title":"停留之后","permission":true,"scope":"marked"}}
+'@ | node "<本技能实际目录>/scripts/cosmos.mjs" draft open --input -
+```
+
 先展示本地内容的完整预览；上传另用 `query publication` 选择准确身份，以 `publish preview` 的 upload 生成全部远端正文、附件、成员和网址预览。只读复检用 `execution verify`；清单保存失败按返回 recovery 生成原批次 recover 预览，保留原分支与提交。
 
 每次展示实际公开范围、警告和 `preview.link` 实际全文链接。用户审阅批准相应范围后用一次 `publish commit --review <reviewId> --confirm`。上传、PR 合并、部署和页面核验分别报告；未闭合批次用 resume/refresh 的新预览，未知结果先查询原执行，不能重新上传。

@@ -31,6 +31,10 @@ $modelFixture=Get-Content -LiteralPath 'tests/fixtures/model-v3/schema.json' -Ra
 foreach ($entityProperty in $modelFixture.entities.PSObject.Properties) {
   foreach ($modelFolder in @($entityProperty.Value.folder)+@($entityProperty.Value.folders)) { New-Item -ItemType Directory -Force -Path (Join-Path $nativeVault $modelFolder) | Out-Null }
 }
+foreach($stageProperty in $modelFixture.stageCategories.PSObject.Properties){
+  New-Item -ItemType Directory -Force -Path (Join-Path $nativeVault $stageProperty.Name) | Out-Null
+  foreach($category in $stageProperty.Value){New-Item -ItemType Directory -Force -Path (Join-Path $nativeVault ($stageProperty.Name+'/'+$category)) | Out-Null}
+}
 New-Item -ItemType Directory -Force -Path (Join-Path $nativeVault ($modelFixture.scriptFolder+'/lib')) | Out-Null
 Copy-Item -LiteralPath 'tests/fixtures/model-v3/services/system-engine.cjs' -Destination (Join-Path $nativeVault ($modelFixture.scriptFolder+'/lib/system-engine.cjs'))
 foreach($archiveCategory in $modelFixture.archiveCategories.PSObject.Properties.Value) { New-Item -ItemType Directory -Force -Path (Join-Path $nativeVault ($modelFixture.archiveFolder+'/'+$archiveCategory)) | Out-Null }

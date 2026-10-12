@@ -26,4 +26,6 @@ PowerShell 的开始标记后换行，结束标记必须独占下一行，不能
 
 按本次事实填写；普通优先级可省略。relativeDays 的基准默认为预览时指定时区的今天，代码一次换算并保存；明确历史基准可填 baseDate。查询用 `query tasks --input <JSON>`；更新与实例操作用 `change preview`，需要格式时用 `help change preview` 获取该命令的实际 Schema。实例和整个系列的选择不清楚时先澄清。
 
+实例动作的 completed 表示是否登记该实例：完成一次用 `{"action":"task.instance.complete","path":"任务路径.md","date":"2026-10-10","completed":true}`；跳过一次用 `{"action":"task.instance.skip","path":"任务路径.md","date":"2026-10-11","completed":true}`。false 取消对应完成或跳过标记，不表示“跳过未完成”。系列的重复规则不变；同一文件的多个动作分成相继审阅的方案。
+
 成功后根据返回的 summary 展示实际日期、关系、正文要点和 `preview.link` 实际全文链接，并结束当前回复，等待用户审阅该具体预览后的确认。创建请求只授权准备方案；不能把它或模型自己的“现在提交”当作预览批准。这是用户已确定的知识库写入流程。收到对该预览的确认后运行一次 `review commit --review <reviewId> --confirm`，它已经执行并复检，steps 的 absolutePath 可直接链接成品。取消用 `review cancel`；中断或结果不确定用原 `executionId` 查询 `execution status/verify`，沿用已有批准，不重建任务。
