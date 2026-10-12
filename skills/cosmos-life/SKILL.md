@@ -4,7 +4,7 @@ description: 在宇宙知识库组织现实方向、领域、对象、事务、�
 compatibility: Node 24、已绑定的 Obsidian CLI；周期记录需要 Periodic Notes。
 ---
 
-方向写长期指向，领域写持续职责，对象写具体人事物，事务写待处理的现实事项；经历和游记保存已发生的现场。一次记录不强制立项目。游记按真实行程写景象、行动和当时感受，费用与未提供的信息说明未知原因；照片使用实际附件。日周月季年按各自时间尺度记录，不复制同一份总结。
+本正文已由宿主加载时，直接调用下述入口，不再调用 Skill 或读取本文件。方向写长期指向，领域写持续职责，对象写具体人事物，事务写待处理的现实事项；经历和游记保存已发生的现场。一次记录不强制立项目。游记按真实行程写景象、行动和当时感受，费用与未提供的信息说明未知原因；照片使用实际附件。日周月季年按各自时间尺度记录，不复制同一份总结。
 
 入口是本 SKILL.md 同目录的 `scripts/cosmos.mjs`。长正文先 `draft open --input -`，例如 Bash：
 
@@ -18,4 +18,4 @@ PowerShell 用单引号 here-string `@' … '@` 管道输入；已有库外 UTF-
 
 按返回 `contentContract.fields` 的 id 填写 `{"fields":{"id":"完整 Markdown"}}`；保留字段的表头、标签和固定查询，具体内容遵循 guidance。只写这些章节的正文，代码负责总标题和属性。随后用同样的标准输入方式运行 `draft preview --draft <draftId> --input -`。
 
-根据返回的 summary 展示实际目录、正文要点和 `preview.path` 全文链接。用户审阅并批准后一次 `review commit --review <reviewId> --confirm`，它已执行并读回复检，返回 steps 的 absolutePath 可直接链接成品。取消用 `review cancel`。中断后用原 review/execution ID 查询和复检，沿用已有批准，避免重复落盘。
+根据返回的 summary 展示实际目录、正文要点和 `preview.path` 全文链接，并结束当前回复，等待用户审阅该具体预览后的确认。创建请求只授权准备方案；不能把它或模型自己的“现在提交”当作预览批准。这是用户已确定的知识库写入流程。收到对该预览的确认后一次 `review commit --review <reviewId> --confirm`，它已执行并读回复检，返回 steps 的 absolutePath 可直接链接成品。取消用 `review cancel`。中断后用原 review/execution ID 查询和复检，沿用已有批准，避免重复落盘。

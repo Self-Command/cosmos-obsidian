@@ -35,7 +35,7 @@ export class Reviews {
     const review: Review = { id, bindingId: this.adapter.config.bindingId, state: 'review-ready', plan, planHash: fingerprint(plan), preview, previewHash: fingerprint(preview), createdAt: new Date().toISOString() };
     await this.store.write('reviews', id, review);
     await this.store.atomic(this.store.file('previews', id), preview);
-    return { ok: true, state: 'review-ready', reviewId: id, summary:planSummary(plan,this.adapter.config.vaultPath), preview: { path: this.store.file('previews', id), format: 'markdown' }, next: { command: 'review commit', reviewId: id } };
+    return { ok: true, state: 'review-ready', reviewId: id, summary:planSummary(plan,this.adapter.config.vaultPath), preview: { path: this.store.file('previews', id), format: 'markdown' }, next: { state:'awaiting-user-review', requiresUserApproval:true, instruction:'展示完整预览链接并等待用户审阅后的确认；创建请求不等于对此预览的批准。', command: 'review commit', reviewId: id } };
   }
   async show(id: string) {
     const review = await this.store.read<Review>('reviews', id); this.store.assertReview(review, this.adapter.config.bindingId);

@@ -79,3 +79,4 @@
 - 新候选改为按预览时区的当前日期一次换算相对日期，返回实际固定属性/短正文或长文提纲，并直接支持既有 stdin 入口示例。原生技能附件使用官方发现清单中的实际路径；Claude 报告保存原生扩展的合成上下文，核对 slash 加载是否发生。调整不改变模型、响应计数或时间门槛，待 Actions 验证。
 - run [38193572666](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38193572666)，候选 `cb6ad2cadab7e2f83076c65e80edb31d7412e724`：所有功能/发行/安装层通过；Codex 预载任务（规划32秒、提交14秒、各2响应）和 Claude 自然任务（29秒/15秒、各3响应）通过，Claude 四组完整流程通过。其余模型速度/探索项未通过；Codex 流程收到 gateway 502/invalid_prompt，不计为能力成功。
 - 真实失败显示自然发现后读脚本、游记提交后为成品链接搜索工作区、普通创建的宽描述误选。技能明确代码负责当前模板与字段、缩小普通创建发现范围，结果新增实际知识库 absolutePath。测试标题移除宿主/激活标签，技术身份仍保留在报告；合成业务事实、所有技能发现和速度门槛保持。
+- smoke [38197655335](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38197655335)，候选 `668c910ce1b3b95c239d3b71878d24ff29c8caa3`：Codex 自然游记通过（规划133秒、提交13秒）。任务自然会话在展示前自行提交，不满足“用户审阅预览后确认”；Claude 自然任务115秒、游记198秒超时限，预载仍重复加载。Codex 预载任务收到 serverOverloaded，预载游记收到 gateway 502/invalid_prompt，均保留失败。当前新候选明确技能已加载即直接调用业务入口，预览返回 awaiting-user-review 及待用户审阅说明；不改变批准后恢复规则、模型或门槛。该轮全部检查仍需重新通过。
