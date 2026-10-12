@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import path from 'node:path';
 const binding=JSON.parse(await readFile(process.env.COSMOS_CONFIG,'utf8')),schema=JSON.parse(await readFile('tests/fixtures/model-v3/schema.json','utf8')),results=[];
 const cli=(args,input)=>new Promise((resolve,reject)=>{const child=spawn(process.execPath,['dist/cosmos.mjs',...args],{shell:false,windowsHide:true});let out='',err='';child.stdout.on('data',b=>out+=b);child.stderr.on('data',b=>err+=b);child.on('error',reject);child.on('close',code=>{try{resolve({code,...JSON.parse(out)});}catch{reject(Error(out+err));}});child.stdin.end(input===undefined?'':JSON.stringify(input));});
@@ -11,11 +11,14 @@ function fixtureContent(contract){return {fields:Object.fromEntries(contract.fie
   for(const anchor of field.anchors)pieces.push('**'+anchor+'**\n\n合成测试材料说明了此项的具体背景、观察范围和未知原因，不代表真实用户经历。');
   pieces.push(...field.fixed);if(!field.anchors.length&&!field.tables.length)pieces.push('这份合成材料包含明确的背景、行动和判断边界；未给出的细节不补造。');return [field.id,pieces.join('\n\n')];}))};}
 const names={};
+const requestsBefore=(await readdir(path.join(binding.stateRoot,'requests'))).sort();
+const missingInput=await cli(['query','notes','--input',path.join(binding.stateRoot,'not-created-input.json')]);assert.equal(missingInput.error.code,'INVALID_INPUT');assert.equal(missingInput.error.recovery.safeToRetry,true);assert.deepEqual((await readdir(path.join(binding.stateRoot,'requests'))).sort(),requestsBefore);results.push({case:'missing-input-file/correctable-error/no-native-dispatch',passed:true});
+const queryHelp=await cli(['query','notes','--help']);assert.equal(queryHelp.ok,true);assert.equal(queryHelp.commands.length,1);assert.equal(queryHelp.commands[0].command,'query notes');assert.deepEqual((await readdir(path.join(binding.stateRoot,'requests'))).sort(),requestsBefore);results.push({case:'trailing-help/actual-schema/no-native-dispatch',passed:true});
 for(const [entity,definition] of Object.entries(schema.entities)){
   if(['task','journal'].includes(entity))continue;
   const title='实体覆盖-'+entity,notePath=definition.folder+'/'+title+'.md';names[entity]=notePath;
   const opened=await cli(['draft','open','--input','-'],{entity,name:title,...(entity==='record'?{attributes:{date:'2026-10-10'}}:{})});assert.equal(opened.state,'needs-content',JSON.stringify(opened));await commit(await cli(['draft','preview','--draft',opened.draftId,'--input','-'],fixtureContent(opened.contentContract)));
-  const observed=await cli(['query','notes','--input','-'],{path:notePath});assert.equal(observed.notes[0].properties.type,entity);assert.deepEqual(observed.notes[0].issues,[]);results.push({case:'native-create-'+entity,passed:true});
+  const observed=await cli(['query','notes','--input','-'],{path:notePath});assert.equal(observed.notes[0].properties.type,entity);assert.equal(observed.notes[0].absolutePath,path.join(binding.vaultPath,...notePath.split('/')));assert.deepEqual(observed.notes[0].issues,[]);results.push({case:'native-create-'+entity,passed:true});
 }
 // One immutable plan creates a project and a TaskNotes task referring to that planned project.
 const projectDraft=await cli(['draft','open','--input','-'],{entity:'project',name:'统一方案项目'});assert.equal(projectDraft.state,'needs-content');

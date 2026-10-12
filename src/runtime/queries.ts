@@ -2,6 +2,7 @@ import { Context } from './context.js';
 import { object, text, validate } from '../registry/schema.js';
 import { splitNote } from '../templates/markdown.js';
 import { CosmosError } from '../errors.js';
+import { safeTarget } from '../domain/identity.js';
 export const notesQuerySchema = object({ path: text, title: text, entity: text, folder: text, includeBody: { type: 'boolean' }, limit: { type: 'integer', minimum: 1, maximum: 100 } });
 export const actionsQuerySchema = object({ path: text }, ['path']);
 export const modelQuerySchema = object({entity:text,category:text});
@@ -21,7 +22,7 @@ export async function queryNotes(ctx: Context, raw: unknown) {
     if (note.properties.route !== folder) issues.push('route 与实际目录不同');
     if (!Array.isArray(note.properties.tags)) issues.push('tags 不是列表');
     if (note.properties.project && (!Array.isArray(note.properties.project) || note.properties.project.length > 1)) issues.push('project 需要零个或一个主项目');
-    result.push({ path: file.path, title: file.basename, properties: note.properties, body: input.includeBody ? note.body : undefined, issues, issueScope: 'current-observation' });
+    result.push({ path: file.path, absolutePath: await safeTarget(ctx.vaultPath,file.path), title: file.basename, properties: note.properties, body: input.includeBody ? note.body : undefined, issues, issueScope: 'current-observation' });
     if (result.length >= (input.limit ?? 20)) break;
   }
   return result;

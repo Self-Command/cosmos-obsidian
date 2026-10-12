@@ -16,7 +16,7 @@ function completeEvidence(){
 }
 
 it('requires complete, matching, successful evidence and all individual latency samples',()=>{const {reports,candidate,needs}=completeEvidence();expect(validateRelease(reports,candidate,needs)).toHaveLength(18);});
-it.each(['missing-job','skipped-job','wrong-candidate','missing-report','empty-native','smoke','missing-sample','slow-sample','unmeasured','exploration','skipped-test'])('blocks release when %s is present',problem=>{
+it.each(['missing-job','skipped-job','wrong-candidate','missing-report','empty-native','smoke','missing-sample','slow-sample','unmeasured','exploration','workflow-exploration','skipped-test'])('blocks release when %s is present',problem=>{
   const {reports,candidate,needs}=completeEvidence(),name='behavior-codex-task-implicit/behavior-codex-task-implicit.json',behavior=reports[name];
   if(problem==='missing-job')delete needs.behavior;
   if(problem==='skipped-job')needs.behavior.result='skipped';
@@ -28,6 +28,7 @@ it.each(['missing-job','skipped-job','wrong-candidate','missing-report','empty-n
   if(problem==='slow-sample')behavior.samples[2].turns[0].milliseconds=90001;
   if(problem==='unmeasured')behavior.samples[1].turns[1].responses=[];
   if(problem==='exploration')behavior.samples[0].turns[0].activity.extraExploration.push({kind:'directory-or-content-scan'});
+  if(problem==='workflow-exploration')reports['behavior-codex-workflows-implicit/behavior-codex-workflows-implicit.json'].samples[0].turns[0].activity.extraExploration.push({kind:'directory-or-content-scan'});
   if(problem==='skipped-test')reports['foundation-windows-latest/tests.json'].numPendingTests=1;
   expect(()=>validateRelease(reports,candidate,needs)).toThrow();
 });

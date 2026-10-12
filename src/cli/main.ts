@@ -21,6 +21,7 @@ export async function main(argv = process.argv.slice(2)) {
   const option = (flag: string) => { const i = clean.indexOf(flag); if (i < 0) return undefined; const value = clean[i + 1]; if (!value || value.startsWith('--')) throw new CosmosError('INVALID_INPUT', flag + ' 需要值。'); clean.splice(i, 2); return value; };
   const inputFile = option('--input'), reviewId = option('--review'), executionId = option('--execution'), draftId = option('--draft');
   const confirmed = clean.includes('--confirm'); if (confirmed) clean.splice(clean.indexOf('--confirm'), 1);
+  if(clean.length>1&&clean.at(-1)==='--help'&&!['help','--help'].includes(clean[0])) {clean.pop();clean.unshift('help');}
   command=clean.join(' ');
   let result;
   if (!clean.length || clean[0] === 'help' || clean[0] === '--help') {
@@ -38,7 +39,8 @@ export async function main(argv = process.argv.slice(2)) {
       let bytes: string;
       if(!inputFile)bytes='{}';
       else if (inputFile === '-') { const chunks: Buffer[] = []; for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk)); bytes = Buffer.concat(chunks).toString('utf8'); }
-      else bytes = await readFile(inputFile, 'utf8');
+      else try { bytes = await readFile(inputFile, 'utf8'); }
+      catch(error) {const code=(error as NodeJS.ErrnoException).code;if(['ENOENT','ENOTDIR','EISDIR','EACCES','EPERM'].includes(code??''))throw new CosmosError('INVALID_INPUT','无法读取输入 JSON 文件。',{file:inputFile,code});throw error;}
       let input;
       try { input = JSON.parse(bytes.replace(/^\uFEFF/, '')); } catch { throw new CosmosError('INVALID_INPUT', '输入需要 UTF-8 JSON。'); }
       validate(operation.schema, input);

@@ -4,7 +4,7 @@
 
 已完成：独立工作区与公开仓库创建、35 份 Markdown 文档保存（含 20 份脱敏历史报告）、旧安装 94 个文件指纹冻结清单及临时旧源码恢复快照。旧远程已加冻结标签并归档为只读；具体身份见 [freeze-record.md](legacy/freeze-record.md)。
 
-D1–D5 均已有 Actions 通过证据。D6 十技能重写、独立发行和安装测试已经通过；真实模型 smoke 失败，正在修复与完善完整发行门禁。旧技能未删除，新技能未安装。详细状态见 [implementation-progress.md](implementation-progress.md)。
+D1–D5 均已有 Actions 通过证据。D6 十技能、独立包和双平台安装检查通过；完整 run 38203077695 的功能层通过，模型六组失败，发行 gate 明确拒绝。已记录全部十组报告与人工正文审阅，准备下一候选的发现说明、查询路径和流程验收修订。旧技能未删除，新技能未安装。详细状态见 [implementation-progress.md](implementation-progress.md)及[本轮完整记录](research/d6-candidate-0940e9-20261012.md)。
 
 用户已授权的最终任务：设计审阅后开发；新技能完成且 GitHub Actions 编译与全部必需测试通过后，删除旧技能本地全部文件及旧远程技能仓库。该删除尚未到执行条件。
 

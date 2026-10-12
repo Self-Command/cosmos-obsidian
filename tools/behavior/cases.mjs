@@ -6,6 +6,21 @@ export function qualityIssues(kind,body){
   if(kind==='task'){for(const fact of ['身份证','收费通知','缴费','凭证','收据','报名'])if(!body.includes(fact))issues.push('Missing supplied task fact: '+fact);if(/已(?:经)?(?:缴费|完成)|已经拿到收据/.test(body))issues.push('Task described as already performed');}
   else {
     for(const fact of ['阿岚','老桥','雨','脚步','24','86','2026-10-10'])if(!body.includes(fact))issues.push('Missing supplied travel fact: '+fact);
+    // Chapters alone do not prove the supplied itinerary was retained. Accept
+    // common Chinese/Arabic time expressions rather than requiring exact prose.
+    const itineraryFacts=[
+      ['08:00 bridge arrival',/(?:0?8|八)\s*(?:[:：]00|点|时)/],
+      ['09:00 market walk',/(?:0?9|九)\s*(?:[:：]00|点|时)/],
+      ['14:00 bus return',/(?:(?:14|十四)\s*(?:[:：]00|点|时)|下午\s*(?:2|两|二)\s*(?:[:：]00|点|时))/],
+      ['half-hour stop',/半(?:个)?小时|(?:30|三十)\s*分钟/],
+      ['two-kilometre river walk',/(?:2|两|二)\s*(?:公里|千米)|2\s*km/i],
+      ['market destination',/市场/],
+      ['riverside meal',/桥边小店/],
+      ['no overnight stay',/无住宿|没有住宿|不(?:需|用)?住宿/],
+      ['umbrella and water',/雨伞[\s\S]*水|水[\s\S]*雨伞/],
+      ['slower return walking pace',/步速[\s\S]{0,12}(?:下降|降低|放慢|变慢|慢)|(?:放慢|慢了)[\s\S]{0,8}脚步/]
+    ];
+    for(const [fact,pattern]of itineraryFacts)if(!pattern.test(body))issues.push('Missing supplied travel fact: '+fact);
     if(!/###\s+清晨\s*·\s*老桥/.test(body)||! /###\s+午后\s*·\s*回程/.test(body))issues.push('Both concrete scenes required');
     if((body.match(/\*\*眼前的景象\*\*/g)??[]).length!==2||(body.match(/\*\*当时发生的事\*\*/g)??[]).length!==2||(body.match(/\*\*那一刻的感受\*\*/g)??[]).length!==2)issues.push('Scene responsibilities were not repeated separately');
     if(body.includes('!['))issues.push('Invented image reference');

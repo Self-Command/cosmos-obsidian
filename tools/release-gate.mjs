@@ -25,7 +25,7 @@ export function validateRelease(reports,candidate,needs){
     const folder='behavior-'+host+'-'+kind+'-'+activation;anchor(folder);const r=get(folder+'/'+folder+'.json');identity(r,folder);assert.equal(r.profile,'full','Smoke is not release evidence');assert.equal(r.host,host);assert.equal(r.case,kind);assert.equal(r.activation,activation);assert.equal(r.model,'gpt-6-luna');assert.equal(r.effort,'xhigh');assert.equal(r.passed,true);
     const required=kind==='workflows'?1:3;assert.equal(r.samples.length,required);
     for(const sample of r.samples){assert.equal(sample.passed,true);assert.deepEqual(sample.issues,[]);assert.ok(sample.turns.length>=2);for(const turn of sample.turns){assert.ok(turn.sessionId);assert.ok(turn.responses?.length,'Native response measurement absent');assert.ok(turn.milliseconds>0);}
-      if(kind==='workflows'){assert.equal(sample.results?.length,4);assert.ok(sample.results.every(c=>c.passed));assert.ok(sample.results.some(c=>c.interruption?.executionId));}
+      if(kind==='workflows'){assert.equal(sample.results?.length,4);assert.ok(sample.results.every(c=>c.passed));assert.ok(sample.results.some(c=>c.interruption?.executionId));for(const turn of sample.turns)assert.deepEqual(turn.activity?.extraExploration,[],'Unrelated workflow exploration');}
       else {assert.deepEqual(sample.turns.map(t=>t.phase),['plan','commit']);for(const turn of sample.turns)assert.deepEqual(performanceIssues(turn,kind,activation==='injected',turn.phase),[]);assert.ok(sample.actualPath&&sample.actualHash&&sample.executionId&&sample.reviewId);}
     }
     validated.push({name:folder,cases:required});

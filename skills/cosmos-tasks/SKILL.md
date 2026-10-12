@@ -4,7 +4,7 @@ description: 在宇宙知识库查询或创建 TaskNotes 任务，修改计划�
 compatibility: Node 24、已绑定的 Obsidian CLI 与 TaskNotes。
 ---
 
-本正文已由宿主加载时，直接调用下述入口，不再调用 Skill 或读取本文件。普通新建任务使用当前默认状态，JSON 省略 status；需要特殊状态时只填当前 TaskNotes 目录的实际值，不猜测 todo。把行动标题、计划开始、明确截止和预计时长分开；预计时长不推导截止。项目代表本次交付，领域代表长期职责，关系只使用实际对应实体。没有归属时省略 relations；有归属时写成 `"relations":{"project":"项目名","area":"领域名"}`，仅填已指定的键，不填 null 或顶层 project/domain。
+本正文已由宿主加载时，直接调用下述入口，不再调用 Skill 或读取本文件。普通新建任务使用当前默认状态，JSON 省略 status；“尚未执行”“未完成”是新任务的事实说明，也省略 status。用户明确选择特殊状态时只填当前 TaskNotes 目录的实际值，不把自然语言或猜测的 todo 当作目录值。把行动标题、计划开始、明确截止和预计时长分开；预计时长不推导截止。项目代表本次交付，领域代表长期职责，关系只使用实际对应实体。没有归属时省略 relations；有归属时写成 `"relations":{"project":"项目名","area":"领域名"}`，仅填已指定的键，不填 null 或顶层 project/domain。
 
 入口是本 SKILL.md 同目录的 `scripts/cosmos.mjs`，自动使用独立安装绑定。材料齐全时把 UTF-8 JSON 直接交给一次 `task preview --input -`，例如 Bash：
 

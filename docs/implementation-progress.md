@@ -88,3 +88,6 @@
 - 旧候选预载游记报告显示一次 PowerShell 起始标记紧接 JSON 导致多余工具回合、一次未传入正文、一次漏掉 --input。draft open 新增 next.arguments 和共享的 next.inputSchema，原生长游记测试实际使用返回参数；现实技能明确正文继续通过标准输入，并保留 PowerShell 换行要求。待下一同包完整 Actions 验收，本地未运行测试。
 
 - 串行 full [38202235723](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38202235723)，候选 56384888c23e4f8156cbee343e0c7c6ec5cfb993：编译、双平台 foundation/installation、native/publication 已通过。Codex 自然任务 3/3 含一例通过（规划69秒/提交33秒），另两例为擅填 todo 后重试、规划91秒及提交网关502/invalid_prompt。已证实新说明确实加载；默认状态说明前移到入口首段，继续拒绝未知目录值，不添加猜测映射。该候选未满足发行门槛，全部失败保留。下一候选合并草稿参数修订后再验收。
+
+- full [38203077695](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38203077695)，候选 `0940e9bab9448fb4e27c89820a7e8d950006a351`：全部功能/包/双平台安装通过，各 73 基础用例、原生任务9/实体4/业务34/发布23；八组速度检查中 Codex 预载游记、Claude 自然任务和预载游记整组通过。其余速度/状态/发现失败保留。Codex 流程已通过歧义与取消断言，但 project-plan 被控制器误用的 180 秒预算中断；Claude 四组功能通过，包含真实宿主中断和原回执恢复。最终发行 gate 为 `releaseReady:false`。已下载核对所有必需报告和候选清单，完整数据及人工正文发现见 [同候选记录](research/d6-candidate-0940e9-20261012.md)。
+- 下一候选按该记录修正游记与只读查询发现、默认状态说明、实际库 absolutePath、缺失 JSON 输入的可修正错误和传统命令 --help。人工发现一篇游记漏掉 09:00 时间，内容 rubric 增加完整行程事实与回归；流程的无关探索也独立纳入门禁。复杂规划轮次恢复使用原定 240 秒操作预算，关键用例仍严格 90/150/60 秒、三独立会话、原模型/effort 和响应上限。新增实际原生零派发/路径检查；修订尚未通过新 Actions，不以旧功能 job 的 success 代替新标准。

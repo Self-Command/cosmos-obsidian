@@ -37,7 +37,9 @@ async function prepareSample(index){
   const sample={index,name:(kind==='task'?'补交驾校费用':kind==='travel'?'雨后山城一日游记':'业务流程')+'-'+process.env.GITHUB_RUN_ID+'-'+index,turns:[],issues:[],passed:false};report.samples.push(sample);await save();
   async function turn(prompt,phase,fault={}){
     const injected=phase==='plan'&&activation==='injected',row={phase,prompt,startedAt:new Date().toISOString(),tools:[],responses:[],injected};sample.turns.push(row);await save();console.log(JSON.stringify({host,kind,activation,index,phase,state:'started'}));
-    const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),phase==='plan'?240000:180000),started=performance.now();
+    const planningPhase=phase==='plan'||phase.endsWith('-plan');
+    row.controllerTimeoutMs=planningPhase?240000:180000;
+    const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),row.controllerTimeoutMs),started=performance.now();
     let receiptWatcher,watching=false;
     if(fault.interruptReviewId)receiptWatcher=setInterval(async()=>{if(watching||controller.signal.aborted)return;watching=true;try{const review=JSON.parse(await fs.readFile(path.join(stateRoot,'reviews',fault.interruptReviewId+'.json'),'utf8'));if(review.executionId){const receipt=JSON.parse(await fs.readFile(path.join(stateRoot,'receipts',review.executionId+'.json'),'utf8'));if(receipt.state==='succeeded'&&receipt.result?.state==='succeeded'){row.interruption={kind:'controller aborted official host after actual terminal native receipt',executionId:review.executionId};controller.abort();}}}catch{}finally{watching=false;}},25);
     const input=injected&&host==='claude'?'/'+selected+' '+prompt:prompt;
@@ -55,7 +57,10 @@ async function prepareSample(index){
       }
     }catch(error){row.error=error.message;if(!row.interruption)throw error;}
     finally{clearTimeout(timeout);clearInterval(receiptWatcher);row.completedAt=new Date().toISOString();row.milliseconds=performance.now()-started;row.sessionId=session;if(host==='codex'&&session)row.responses=await codexResponses(configRoot,session,row.startedAt,row.completedAt);row.commands=await commandMetrics(stateRoot,row.startedAt,row.completedAt);row.activity=activity(row.tools,injected);await save();console.log(JSON.stringify({host,kind,activation,index,phase,milliseconds:Math.round(row.milliseconds),responses:row.responses.length,commands:row.commands.map(c=>c.command),state:row.interruption?'interrupted':row.error?'failed':'completed'}));}
-    assert.ok(session,'Native persisted session ID missing');if(!row.interruption)assert.ok(row.answer?.trim(),'No user-facing result');if(phase==='plan')assert.deepEqual([...new Set(row.discoveredSkills??[])].sort(),[...manifest.skills].sort(),'Official host did not discover all ten skills');if(fault.interruptReviewId)assert.ok(row.interruption,'Official host was not interrupted after the native receipt');if(kind!=='workflows')sample.issues.push(...performanceIssues(row,kind,injected,phase));else if(!row.responses.length)sample.issues.push('Native response IDs were not measured');return row;
+    assert.ok(session,'Native persisted session ID missing');if(!row.interruption)assert.ok(row.answer?.trim(),'No user-facing result');if(phase==='plan')assert.deepEqual([...new Set(row.discoveredSkills??[])].sort(),[...manifest.skills].sort(),'Official host did not discover all ten skills');if(fault.interruptReviewId)assert.ok(row.interruption,'Official host was not interrupted after the native receipt');
+    if(kind!=='workflows')sample.issues.push(...performanceIssues(row,kind,injected,phase));
+    else {if(!row.responses.length)sample.issues.push('Native response IDs were not measured');if(row.activity.extraExploration.length)sample.issues.push('Unrelated exploration or repeated skill loading in '+phase);}
+    return row;
   }
   return {sample,turn,stateRoot,staged,binding:{...binding,stateRoot},configPath:config,processRun};
 }
