@@ -17,8 +17,8 @@ export function schedule(value: Schedule, now = new Date()): string {
   if (value.date && value.relativeDays !== undefined) throw new CosmosError('INVALID_DATE', '绝对日期与相对日期不能同时填写。');
   let date = value.date;
   if (value.relativeDays !== undefined) {
-    if (!Number.isInteger(value.relativeDays) || !value.baseDate) throw new CosmosError('INVALID_DATE', '相对日期需要整数天数和明确基准日期。');
-    const base = new Date(validDate(value.baseDate) + 'T00:00:00Z'); base.setUTCDate(base.getUTCDate() + value.relativeDays); date = base.toISOString().slice(0, 10);
+    if (!Number.isInteger(value.relativeDays)) throw new CosmosError('INVALID_DATE', '相对日期需要整数天数。');
+    const base = new Date(validDate(value.baseDate??todayIn(value.timeZone,now)) + 'T00:00:00Z'); base.setUTCDate(base.getUTCDate() + value.relativeDays); date = base.toISOString().slice(0, 10);
   }
   if (!date) throw new CosmosError('NEEDS_INPUT', '需要具体日期或带基准的相对日期。');
   validDate(date);

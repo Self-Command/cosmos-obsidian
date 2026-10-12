@@ -10,6 +10,8 @@ const cli=(args,input)=>new Promise((resolve,reject)=>{
  if(input!==undefined)child.stdin.end(JSON.stringify(input));else child.stdin.end();
 });
 const results=[];
+const relative=await cli(['task','preview','--input','-'],{title:'相对日期独立预览',schedule:{relativeDays:1,time:'10:30',timeZone:'Asia/Shanghai'}});assert.equal(relative.state,'review-ready',JSON.stringify(relative));
+const tomorrow=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+86400000));assert.equal(relative.summary.changes[0].properties.scheduled,tomorrow+'T10:30');await cli(['review','cancel','--review',relative.reviewId]);results.push({case:'relative-date-default-clock-and-pinned-summary',passed:true});
 const task={title:'验收中文任务',schedule:{date:'2026-10-12',time:'09:00',timeZone:'Asia/Shanghai'},estimateMinutes:30,priority:{rank:'highest'},details:'逐项核对已有材料。\n保留 $()、` 和 & 作为正文。'};
 const preview=await cli(['task','preview','--input','-'],task);assert.equal(preview.state,'review-ready',JSON.stringify(preview));
 const target=path.join(binding.vaultPath,'太阳/核聚变/验收中文任务.md');

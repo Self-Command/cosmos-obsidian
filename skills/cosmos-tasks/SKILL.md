@@ -6,12 +6,16 @@ compatibility: Node 24、已绑定的 Obsidian CLI 与 TaskNotes。
 
 把行动标题、计划开始、明确截止和预计时长分开；预计时长不推导截止。项目代表本次交付，领域代表长期职责，关系只使用实际对应实体。
 
-入口是 `node "<本技能实际目录>/scripts/cosmos.mjs"`，自动使用独立安装绑定。材料齐全时直接运行一次 `task preview --input <库外 UTF-8 JSON>`，例如：
+入口是本 SKILL.md 同目录的 `scripts/cosmos.mjs`，自动使用独立安装绑定。材料齐全时把 UTF-8 JSON 直接交给一次 `task preview --input -`，例如 Bash：
 
-```json
+```bash
+node "<本技能实际目录>/scripts/cosmos.mjs" task preview --input - <<'JSON'
 {"title":"补交驾校费用","schedule":{"relativeDays":1,"time":"10:30","timeZone":"Asia/Shanghai"},"estimateMinutes":60,"priority":{"rank":"highest"},"details":"携带缴费通知，核对金额，付款后保存收据。"}
+JSON
 ```
 
-按本次事实填写；普通优先级可省略。查询用 `query tasks --input <JSON>`；更新与实例操作用 `change preview`，需要格式时用 `help change preview` 获取该命令的实际 Schema。实例和整个系列的选择不清楚时先澄清。
+PowerShell 用单引号 here-string `@' … '@` 管道输入同一命令；已有库外 UTF-8 JSON 文件可用 `--input <文件>`。宿主已加载的本正文与该入口足以办理创建。
 
-成功后展示实际日期、关系、正文要点和 `preview.path` 全文链接。用户审阅并批准后运行一次 `review commit --review <reviewId> --confirm`，它已经执行并复检。取消用 `review cancel`；中断或结果不确定用原 `executionId` 查询 `execution status/verify`，沿用已有批准，不重建任务。
+按本次事实填写；普通优先级可省略。relativeDays 的基准默认为预览时指定时区的今天，代码一次换算并保存；明确历史基准可填 baseDate。查询用 `query tasks --input <JSON>`；更新与实例操作用 `change preview`，需要格式时用 `help change preview` 获取该命令的实际 Schema。实例和整个系列的选择不清楚时先澄清。
+
+成功后根据返回的 summary 展示实际日期、关系、正文要点和 `preview.path` 全文链接。用户审阅并批准后运行一次 `review commit --review <reviewId> --confirm`，它已经执行并复检。取消用 `review cancel`；中断或结果不确定用原 `executionId` 查询 `execution status/verify`，沿用已有批准，不重建任务。

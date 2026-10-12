@@ -5,7 +5,7 @@ import os from 'node:os';
 import { normalizeTask, normalizeTaskChange, tags } from '../src/domain/tasks.js';
 import { schedule } from '../src/domain/dates.js';
 import { Store, type Review } from '../src/state/store.js';
-import { Reviews } from '../src/workflows/review.js';
+import { Reviews, planSummary } from '../src/workflows/review.js';
 import { CosmosError } from '../src/errors.js';
 import type { Plan } from '../src/workflows/types.js';
 const catalog = { statuses: () => [{value:'open',label:'未开始',isCompleted:false},{value:'done',label:'完成',isCompleted:true}], priorities: () => [{value:'low',label:'低',weight:1},{value:'high',label:'高',weight:4}] };
@@ -17,6 +17,13 @@ describe('task business contract', () => {
   it('pins relative dates once and keeps time estimate separate from due date', () => {
     const task = normalizeTask({title:'准备材料',schedule:{relativeDays:1,baseDate:'2026-10-11',time:'09:00',timeZone:'Asia/Shanghai'},estimateMinutes:30,priority:{rank:'highest'}},api,settings);
     expect(task.data.scheduled).toBe('2026-10-12T09:00'); expect(task.data.due).toBeUndefined(); expect(task.data.timeEstimate).toBe(30); expect(task.data.priority).toBe('high');
+  });
+  it('resolves relative dates from the preview clock in the supplied timezone while retaining explicit historical bases',()=>{
+    const now=new Date('2026-10-11T17:30:00Z');
+    expect(schedule({relativeDays:1,time:'10:30',timeZone:'Asia/Shanghai'},now)).toBe('2026-10-13T10:30');
+    expect(schedule({relativeDays:1,timeZone:'America/New_York'},now)).toBe('2026-10-12');
+    expect(schedule({relativeDays:1,baseDate:'2025-12-31',timeZone:'Asia/Shanghai'},now)).toBe('2026-01-01');
+    expect(()=>schedule({relativeDays:1,baseDate:'2026-02-30',timeZone:'Asia/Shanghai'},now)).toThrow();
   });
   it.each(['2026-02-30','2026-13-01','2026-10-32'])('rejects nonexistent date %s', date => { expect(() => schedule({date,timeZone:'Asia/Shanghai'})).toThrow(); });
   it('rejects ambiguous ranked priority and undeclared fields', () => {
@@ -31,6 +38,13 @@ describe('task business contract', () => {
   });
 });
 describe('review execution state', () => {
+  it('shows the actual pinned properties and short body, with a bounded outline for long content',()=>{
+    const plan:Plan={version:1,bindingId:'bound',steps:[{action:'task.create',path:'task.md',data:{privateTransport:'excluded'},expected:{properties:{scheduled:'2026-10-13T10:30',priority:'high'},body:'# 任务\n\n核对金额后保留收据。'}},{action:'entity.create',path:'trip.md',data:{},expected:{body:'# 游记\n\n## 现场\n\n'+'山路与雨水。'.repeat(600)}}],dependencies:[],environment:{},warnings:[]};
+    const summary=planSummary(plan);
+    expect(summary.changes[0]!.properties?.scheduled).toBe('2026-10-13T10:30');expect(summary.changes[0]!.body).toContain('收据');
+    expect(summary.changes[1]!.body).toBeUndefined();expect(summary.changes[1]!.content?.headings).toEqual(['游记','现场']);
+    expect(JSON.stringify(summary)).not.toContain('privateTransport');
+  });
   async function service(mode:'success'|'uncertain'='success') {
     const root=await mkdtemp(path.join(os.tmpdir(),'cosmos-review-'));cleanup.push(root);const store=new Store(root);
     let writes=0;

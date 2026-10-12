@@ -75,3 +75,5 @@
 - 同源码 smoke run [38174593104](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38174593104)：8 组模型检查均未通过。Codex 四组和 Claude 任务两组在首个预览前超时；Claude 游记两组真实生成/提交成功，但重复尝试或多余查询、响应回合超标。所有失败保存，不更换模型或放宽速度门槛。
 - smoke 发现两项具体缺口：游记标签顶层格式示例不完整；手写 XML 预载没有触发官方原生加载。修正示例和普通创建职责边界；新 Codex 使用同一 0.162.1 官方 app-server 的 `skill` 输入，Claude 使用原生 slash 调用。新增歧义/多文件项目/合法生命周期/取消恢复与实际终端回执后宿主中断；新候选待 Actions 验证。
 - 新发行汇总检查每层的 run/attempt、候选清单、报告实际用例、单样本速度及所有必需 job；missing/skipped/empty/smoke 均拒绝发行。D6 尚未闭合，旧安装保持冻结。
+- smoke [38192148322](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38192148322) 暴露官方 app-server sandbox 枚举拼写错误；已按原生诊断修正。后续 [38192435862](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38192435862) 的 Codex 游记出现 gateway streaming 在 response.completed 前断开，保留基础设施失败。Claude 任务实际预览/提交成功，但相对日期缺省与额外加载/读回导致规划不合格。
+- 新候选改为按预览时区的当前日期一次换算相对日期，返回实际固定属性/短正文或长文提纲，并直接支持既有 stdin 入口示例。原生技能附件使用官方发现清单中的实际路径；Claude 报告保存原生扩展的合成上下文，核对 slash 加载是否发生。调整不改变模型、响应计数或时间门槛，待 Actions 验证。

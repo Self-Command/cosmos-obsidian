@@ -12,6 +12,15 @@ export function previewMarkdown(plan: Plan) {
   }
   return '# Cosmos 完整变更预览\n\n' + plan.steps.map((step, index) => `## ${index + 1}. ${step.action}\n\n目标：${step.path}\n\n` + (step.source ? '来源：' + step.source + '\n\n' : '') + (step.expected.absent ? '回收到系统废纸篓，实际回收后核对来源已移出。\n\n原文：\n\n' + noteBytes(step.data.originalProperties,step.data.originalBody) : step.expected.body !== undefined ? noteBytes(step.expected.properties ?? {}, step.expected.body) : '变更：\n\n' + JSON.stringify(step.data, null, 2)) + (step.data.links?.length ? '\n\n引用更新（Obsidian 原生改名服务）：\n' + step.data.links.map((link:any) => '- ' + link.path + '：' + link.originalLinks.join('、') + ' → ' + step.path.replace(/\.md$/,'') + '（' + link.count + '处）').join('\n') : '')).join('\n\n') + '\n\n依赖：\n' + plan.dependencies.map(x => '- ' + x.path + '（' + x.kind + '）').join('\n') + '\n' + plan.warnings.map(x => '- ' + x).join('\n');
 }
+export function planSummary(plan: Plan) {
+  return { changes: plan.steps.map(step => {
+    const body=step.expected.body;
+    return { action:step.action, path:step.path, source:step.source, properties:step.expected.properties,
+      body:body!==undefined&&body.length<=2400?body:undefined,
+      content:body===undefined?undefined:{characters:body.length,headings:body.split('\n').filter(line=>/^#{1,6} /.test(line)).map(line=>line.replace(/^#{1,6} /,''))},
+      recycle:step.expected.absent||undefined };
+  }), warnings:plan.warnings };
+}
 export class Reviews {
   store: Store;
   constructor(public adapter: Obsidian) { this.store = adapter.store; }
@@ -25,7 +34,7 @@ export class Reviews {
     const review: Review = { id, bindingId: this.adapter.config.bindingId, state: 'review-ready', plan, planHash: fingerprint(plan), preview, previewHash: fingerprint(preview), createdAt: new Date().toISOString() };
     await this.store.write('reviews', id, review);
     await this.store.atomic(this.store.file('previews', id), preview);
-    return { ok: true, state: 'review-ready', reviewId: id, summary: { changes: plan.steps.map(({ action, path, source }) => ({ action, path, source })), warnings: plan.warnings }, preview: { path: this.store.file('previews', id), format: 'markdown' }, next: { command: 'review commit', reviewId: id } };
+    return { ok: true, state: 'review-ready', reviewId: id, summary:planSummary(plan), preview: { path: this.store.file('previews', id), format: 'markdown' }, next: { command: 'review commit', reviewId: id } };
   }
   async show(id: string) {
     const review = await this.store.read<Review>('reviews', id); this.store.assertReview(review, this.adapter.config.bindingId);
