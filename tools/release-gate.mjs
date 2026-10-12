@@ -4,6 +4,7 @@ import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';
 import {skillScenarios,scenarioHost,scenarioActivation} from './behavior/skill-suites.mjs';
+import {validateSkillReuse} from './reuse-skill-evidence.mjs';
 
 const requiredJobs=['build','foundation','native','publication','installation','behavior'];
 export function validateRelease(reports,candidate,needs){
@@ -22,14 +23,16 @@ export function validateRelease(reports,candidate,needs){
   cases('native-environment/native-tasks.json',8);cases('native-environment/native-entities.json',4);cases('native-environment/native-business.json',34);
   anchor('native-publication');const publication=cases('native-publication/native-publication.json',23);identity(publication,'publication');
   for(const [skill,scenarios]of Object.entries(skillScenarios)){
-    const folder='behavior-mixed-'+skill+'-mixed';anchor(folder);const r=get(folder+'/'+folder+'.json');identity(r,folder);assert.equal(r.profile,'full','Smoke is not release evidence');assert.equal(r.host,'mixed');assert.equal(r.case,skill);assert.equal(r.activation,'mixed');assert.equal(r.model,'gpt-6-luna');assert.equal(r.effort,'xhigh');assert.equal(r.passed,true);assert.equal(r.samples.length,scenarios.length);
+    const folder='behavior-mixed-'+skill+'-mixed';anchor(folder);const r=get(folder+'/'+folder+'.json');let reused;
+    if(reports[folder+'/behavior-evidence-reuse.json'])reused=validateSkillReuse(candidate,r,reports[folder+'/behavior-evidence-reuse.json']);else identity(r,folder);
+    assert.equal(r.profile,'full','Smoke is not release evidence');assert.equal(r.host,'mixed');assert.equal(r.case,skill);assert.equal(r.activation,'mixed');assert.equal(r.model,'gpt-6-luna');assert.equal(r.effort,'xhigh');assert.equal(r.passed,true);assert.equal(r.samples.length,scenarios.length);
     for(let i=0;i<scenarios.length;i++){
       const sample=r.samples[i];assert.equal(sample.index,i+1);assert.equal(sample.skill,skill);assert.equal(sample.scenario,scenarios[i],'Wrong or repeated skill scenario');assert.equal(sample.host,scenarioHost(i+1));assert.equal(sample.activation,scenarioActivation(i+1));assert.equal(sample.passed,true);assert.deepEqual(sample.issues,[]);assert.ok(sample.results?.length,'Missing actual scenario assertions');assert.ok(sample.results.every(c=>c.passed===true));assert.ok(sample.results.some(c=>c.case===scenarios[i]+'/skill-flow'));
       assert.ok(sample.turns.length);for(const turn of sample.turns){assert.ok(turn.sessionId);assert.ok(turn.responses?.length,'Native response measurement absent');assert.ok(turn.milliseconds>0);assert.ok(!turn.error||turn.interruption,'Required host turn failed');}
       // User-approved acceptance is the architecture and observable result.
       // Timing, response count and additional reads are retained as diagnostics.
     }
-    validated.push({name:folder,skill,cases:scenarios.length});
+    validated.push({name:folder,skill,cases:scenarios.length,...(reused?{evidence:'unchanged dependencies; original real-host report retained',sourceRunId:reused.sourceRunId,sourceSha:reused.sourceSha,reportHash:reused.reportHash}:{evidence:'fresh real-host execution'})});
   }
   return validated;
 }

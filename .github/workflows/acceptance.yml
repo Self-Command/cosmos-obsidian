@@ -9,8 +9,13 @@ on:
         type: choice
         options: [none, smoke, full]
         default: none
+      evidence_run:
+        description: Optional complete prior full campaign; unchanged passed skills require byte and dependency proof
+        type: string
+        default: ''
 permissions:
   contents: read
+  actions: read
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,6 +34,7 @@ jobs:
           node --check tools/behavior/workflows.mjs
           node --check tools/behavior/skill-suites.mjs
           node --check tools/release-gate.mjs
+          node --check tools/reuse-skill-evidence.mjs
       - run: npm run build
       - run: npm run verify:package
       - uses: actions/upload-artifact@v4
@@ -131,23 +137,47 @@ jobs:
       BEHAVIOR_ACTIVATION: ${{ matrix.activation }}
       BEHAVIOR_PROFILE: ${{ inputs.behavior }}
       BEHAVIOR_SAMPLES: ${{ inputs.behavior == 'full' && matrix.case != 'workflows' && '3' || '1' }}
+      BASE_EVIDENCE_RUN: ${{ inputs.behavior == 'full' && inputs.evidence_run || '' }}
     steps:
       - uses: actions/checkout@v4
-        with: {persist-credentials: false}
+        with: {persist-credentials: false,fetch-depth: 0}
       - uses: actions/setup-node@v4
         with: {node-version: '24.21.0',cache: npm,cache-dependency-path: 'tools/behavior/package-lock.json'}
       - run: npm ci --ignore-scripts
-      - run: npm ci --prefix tools/behavior --ignore-scripts --no-audit --no-fund
       - uses: actions/download-artifact@v4
         with: {name: cosmos-candidate,path: dist/}
       - run: node tools/verify-package.mjs
+      - uses: actions/download-artifact@v4
+        if: env.BASE_EVIDENCE_RUN != ''
+        continue-on-error: true
+        with:
+          name: cosmos-candidate
+          path: .base-evidence/cosmos-candidate
+          run-id: ${{ env.BASE_EVIDENCE_RUN }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        if: env.BASE_EVIDENCE_RUN != ''
+        continue-on-error: true
+        with:
+          name: behavior-mixed-${{ matrix.case }}-mixed
+          path: .base-evidence/behavior-mixed-${{ matrix.case }}-mixed
+          run-id: ${{ env.BASE_EVIDENCE_RUN }}
+          github-token: ${{ github.token }}
+      - name: Reuse only complete real-host evidence with identical dependencies
+        id: reuse
+        run: node tools/reuse-skill-evidence.mjs .base-evidence
+      - if: steps.reuse.outputs.reused != 'true'
+        run: npm ci --prefix tools/behavior --ignore-scripts --no-audit --no-fund
       - shell: pwsh
+        if: steps.reuse.outputs.reused != 'true'
         run: ./tools/native/setup.ps1
-      - run: node tools/native/probe.mjs
-      - if: matrix.case == 'cosmos-amytis'
+      - if: steps.reuse.outputs.reused != 'true'
+        run: node tools/native/probe.mjs
+      - if: matrix.case == 'cosmos-amytis' && steps.reuse.outputs.reused != 'true'
         shell: pwsh
         run: ./tools/native/publication-setup.ps1
       - name: Required model in official persisted host and real isolated Obsidian
+        if: steps.reuse.outputs.reused != 'true'
         run: node tools/behavior/run.mjs
       - uses: actions/upload-artifact@v4
         if: always()

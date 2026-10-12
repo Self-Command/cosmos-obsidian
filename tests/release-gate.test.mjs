@@ -1,6 +1,7 @@
 import {it,expect} from 'vitest';
 import {validateRelease} from '../tools/release-gate.mjs';
 import {skillScenarios,scenarioHost,scenarioActivation} from '../tools/behavior/skill-suites.mjs';
+import {assessSkillReuse,evidenceDependencies} from '../tools/reuse-skill-evidence.mjs';
 
 function completeEvidence(){
   const candidate={sourceSha:'a'.repeat(40),runId:'123',attempt:'1',files:{}},reports={},needs=Object.fromEntries(['build','foundation','native','publication','installation','behavior'].map(name=>[name,{result:'success'}]));
@@ -18,6 +19,11 @@ function completeEvidence(){
 
 it('requires complete, matching evidence for three distinct scenarios of every skill',()=>{const {reports,candidate,needs}=completeEvidence();expect(validateRelease(reports,candidate,needs)).toHaveLength(18);});
 it('records response count, latency and additional reads without rejecting a correct architecture flow',()=>{const {reports,candidate,needs}=completeEvidence(),turn=reports['behavior-mixed-cosmos-tasks-mixed/behavior-mixed-cosmos-tasks-mixed.json'].samples[0].turns[0];turn.milliseconds=180001;turn.responses=Array.from({length:8},(_,i)=>({id:'native-'+i}));turn.activity.extraExploration=[{kind:'extra-skill-loading'}];expect(validateRelease(reports,candidate,needs)).toHaveLength(18);});
+it('accepts retained reports only with unchanged dependency proof and preserves their original identity',()=>{
+  const {reports,candidate,needs}=completeEvidence(),folder='behavior-mixed-cosmos-tasks-mixed',report=reports[folder+'/'+folder+'.json'];candidate.skills=Object.keys(skillScenarios);for(const value of Object.values(reports))if(value.candidate)value.candidate.skills=[...candidate.skills];report.candidate=structuredClone(candidate);report.candidate.sourceSha='c'.repeat(40);report.candidate.runId='122';report.sourceSha=report.candidate.sourceSha;report.runId=report.candidate.runId;
+  const context={trees:Object.fromEntries(evidenceDependencies.map(name=>[name,{before:'d'.repeat(40),after:'d'.repeat(40)}])),discovery:Object.fromEntries(candidate.skills.map(name=>[name,{before:'e'.repeat(64),after:'e'.repeat(64)}]))},proof=assessSkillReuse(candidate,report,context);expect(proof.eligible).toBe(true);reports[folder+'/behavior-evidence-reuse.json']=proof;
+  expect(validateRelease(reports,candidate,needs).find(v=>v.skill==='cosmos-tasks').sourceRunId).toBe('122');expect(report.sourceSha).toBe('c'.repeat(40));proof.trees['tools/behavior'].after='f'.repeat(40);expect(()=>validateRelease(reports,candidate,needs)).toThrow();
+});
 it.each(['missing-job','skipped-job','wrong-candidate','missing-report','empty-native','smoke','missing-sample','repeated-scenario','failed-case','failed-turn','unmeasured','skipped-test'])('blocks release when %s is present',problem=>{
   const {reports,candidate,needs}=completeEvidence(),name='behavior-mixed-cosmos-tasks-mixed/behavior-mixed-cosmos-tasks-mixed.json',behavior=reports[name];
   if(problem==='missing-job')delete needs.behavior;
