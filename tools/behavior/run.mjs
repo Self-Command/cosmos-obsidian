@@ -4,18 +4,19 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
-import {pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';
 import {parse} from 'yaml';
 import {taskPrompt,travelPrompt,qualityIssues} from './cases.mjs';
 import {activity,codexResponses,commandMetrics,performanceIssues} from './metrics.mjs';
+import {workflowCases} from './workflows.mjs';
+import {codexTurn} from './codex-host.mjs';
 const host=process.env.BEHAVIOR_HOST,kind=process.env.BEHAVIOR_CASE??'task',activation=process.env.BEHAVIOR_ACTIVATION??'implicit',profile=process.env.BEHAVIOR_PROFILE??'full',count=Number(process.env.BEHAVIOR_SAMPLES??3);
 const manifest=JSON.parse(await fs.readFile('dist/manifest.json','utf8')),binding=JSON.parse(await fs.readFile(process.env.COSMOS_CONFIG,'utf8')),reportFile='artifacts/behavior-'+host+'-'+kind+'-'+activation+'.json';
-const report={sourceSha:process.env.GITHUB_SHA,runId:process.env.GITHUB_RUN_ID,candidate:manifest,profile,host,case:kind,activation,model:'gpt-6-luna',effort:'xhigh',gateway:'existing configured evaluation gateway',nativeBackend:'official Obsidian 1.14.4 / TaskNotes 4.13.8; no simulated native services',node:process.version,platform:process.platform,sdk:host==='codex'?'0.162.1':'0.3.295',permissions:'isolated synthetic CI only; caller approval declaration remains the CLI trust boundary',samples:[],passed:false};
+const report={sourceSha:process.env.GITHUB_SHA,runId:process.env.GITHUB_RUN_ID,candidate:manifest,profile,host,case:kind,activation,model:'gpt-6-luna',effort:'xhigh',gateway:'existing configured evaluation gateway',nativeBackend:'official Obsidian 1.14.4 / TaskNotes 4.13.8; no simulated native services',node:process.version,platform:process.platform,sdk:host==='codex'?'official app-server 0.162.1':'0.3.295',permissions:'isolated synthetic CI only; caller approval declaration remains the CLI trust boundary',samples:[],passed:false};
 const redacted=value=>JSON.stringify(value,null,2).replaceAll(process.env.EVALUATION_TOKEN||'a-value-that-is-not-a-secret','[REDACTED]');
 const save=async()=>{await fs.mkdir('artifacts',{recursive:true});await fs.writeFile(reportFile,redacted(report));};
 await save();
-function processRun(executable,args,options={}){return new Promise((resolve,reject)=>{const child=spawn(executable,args,{shell:false,windowsHide:true,...options});let out='',err='';child.stdout.on('data',b=>out+=b);child.stderr.on('data',b=>err+=b);child.on('error',reject);child.on('close',code=>resolve({code,out,err}));child.stdin?.end();});}
+function processRun(executable,args,options={}){return new Promise((resolve,reject)=>{const {input,...spawnOptions}=options,child=spawn(executable,args,{shell:false,windowsHide:true,...spawnOptions});let out='',err='';child.stdout.on('data',b=>out+=b);child.stderr.on('data',b=>err+=b);child.on('error',reject);child.on('close',code=>resolve({code,out,err}));child.stdin?.end(input);});}
 async function installer(args){const result=await processRun(process.execPath,[path.resolve('dist/install.mjs'),...args]);assert.equal(result.code,0,result.out+result.err);return JSON.parse(result.out);}
 async function markdownFiles(directory,base=''){const result=[];for(const entry of await fs.readdir(directory,{withFileTypes:true})){if(entry.name.startsWith('.'))continue;const full=path.join(directory,entry.name),relative=base+entry.name;if(entry.isDirectory())result.push(...await markdownFiles(full,relative+'/'));else if(entry.name.endsWith('.md'))result.push({path:relative,hash:createHash('sha256').update(await fs.readFile(full)).digest('hex')});}return result.sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0);}
 const snapshot=async()=>JSON.stringify(await markdownFiles(binding.vaultPath));
@@ -25,43 +26,43 @@ async function prepareSample(index){
   const directory=path.join(process.env.COSMOS_NATIVE_ROOT,'behavior-'+host+'-'+kind+'-'+activation+'-'+index),workspace=path.join(directory,'workspace'),evaluationHome=path.join(directory,'home'),stateRoot=path.join(directory,'state'),config=path.join(directory,'binding.json'),installRoot=path.join(directory,'install');
   await fs.mkdir(workspace,{recursive:true});await fs.mkdir(evaluationHome,{recursive:true});await fs.mkdir(stateRoot,{recursive:true});await fs.writeFile(config,JSON.stringify({...binding,stateRoot}));await fs.writeFile(path.join(workspace,'AGENTS.md'),'Do not use subagents or delegate work. This workspace contains only synthetic evaluation inputs.\n');
   const staged=await installer(['stage','--root',installRoot,'--config',config]),discovery=path.join(evaluationHome,host==='codex'?'.agents':'.claude','skills'),destinations=path.join(directory,'destinations.json');await fs.writeFile(destinations,JSON.stringify([discovery]));const proposed=await installer(['plan','--root',installRoot,'--destinations',destinations]);assert.equal((await installer(['switch','--root',installRoot,'--installation',proposed.installationId,'--confirm'])).state,'complete');
-  const selected=kind==='travel'?'cosmos-life':'cosmos-tasks',skillPath=path.join(discovery,selected,'SKILL.md'),skill=await fs.readFile(skillPath,'utf8'),configRoot=path.join(evaluationHome,host==='codex'?'.codex':'.claude');await fs.mkdir(configRoot,{recursive:true});
+  const selected=kind==='travel'?'cosmos-life':'cosmos-tasks',skillPath=path.join(discovery,selected,'SKILL.md'),configRoot=path.join(evaluationHome,host==='codex'?'.codex':'.claude');await fs.mkdir(configRoot,{recursive:true});
   const env={...process.env,HOME:evaluationHome,USERPROFILE:evaluationHome,CODEX_HOME:configRoot,CLAUDE_CONFIG_DIR:configRoot,COSMOS_CONFIG:config,COSMOS_TRACE:'1',COSMOS_EVAL_KEY:process.env.EVALUATION_TOKEN,ANTHROPIC_AUTH_TOKEN:process.env.EVALUATION_TOKEN,ANTHROPIC_BASE_URL:'https://4router.net',CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:'1',CLAUDE_CODE_EFFORT_LEVEL:'xhigh'};
   // Scope credentials to the native host environment, never to the report or installed package.
   delete env.PUBLICATION_TOKEN;delete env.CHATGPT_API_KEY;delete env.OPENAI_API_KEY;
-  const options={model:'gpt-6-luna',modelReasoningEffort:'xhigh',workingDirectory:workspace,skipGitRepoCheck:true,sandboxMode:'danger-full-access',approvalPolicy:'never',networkAccessEnabled:false,webSearchMode:'disabled',additionalDirectories:[directory,binding.vaultPath]};
-  let sdk,thread,session;
-  if(host==='codex'){const {Codex}=await import('./node_modules/@openai/codex-sdk/dist/index.js');sdk=new Codex({env,config:{model_provider:'evaluation',model_providers:{evaluation:{name:'Configured evaluation gateway',base_url:'https://4router.net/v1',env_key:'COSMOS_EVAL_KEY',wire_api:'responses',request_max_retries:1,stream_max_retries:1}},developer_instructions:context,features:{multi_agent:false},mcp_servers:{}}});thread=sdk.startThread(options);}
-  const sample={index,name:(kind==='task'?'补交驾校费用':'雨后山城一日游记')+'-'+host+'-'+activation+'-'+process.env.GITHUB_RUN_ID+'-'+index,turns:[],issues:[],passed:false};report.samples.push(sample);await save();
-  async function turn(prompt,phase){
+  let session;
+  if(host==='codex')await fs.writeFile(path.join(configRoot,'config.toml'),'model = "gpt-6-luna"\nmodel_provider = "evaluation"\nmodel_reasoning_effort = "xhigh"\nweb_search = "disabled"\n[features]\nmulti_agent = false\n[model_providers.evaluation]\nname = "Configured evaluation gateway"\nbase_url = "https://4router.net/v1"\nenv_key = "COSMOS_EVAL_KEY"\nwire_api = "responses"\nrequest_max_retries = 1\nstream_max_retries = 1\nstream_idle_timeout_ms = 90000\n');
+  const sample={index,name:(kind==='task'?'补交驾校费用':kind==='travel'?'雨后山城一日游记':'业务流程')+'-'+host+'-'+activation+'-'+process.env.GITHUB_RUN_ID+'-'+index,turns:[],issues:[],passed:false};report.samples.push(sample);await save();
+  async function turn(prompt,phase,fault={}){
     const injected=phase==='plan'&&activation==='injected',row={phase,prompt,startedAt:new Date().toISOString(),tools:[],responses:[],injected};sample.turns.push(row);await save();console.log(JSON.stringify({host,kind,activation,index,phase,state:'started'}));
     const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),phase==='plan'?240000:180000),started=performance.now();
-    const input=injected?prompt+'\n\n<skill>\n<name>'+selected+'</name>\n<path>'+skillPath+'</path>\n'+skill+'\n</skill>':prompt;
+    let receiptWatcher,watching=false;
+    if(fault.interruptReviewId)receiptWatcher=setInterval(async()=>{if(watching||controller.signal.aborted)return;watching=true;try{const review=JSON.parse(await fs.readFile(path.join(stateRoot,'reviews',fault.interruptReviewId+'.json'),'utf8'));if(review.executionId){const receipt=JSON.parse(await fs.readFile(path.join(stateRoot,'receipts',review.executionId+'.json'),'utf8'));if(receipt.state==='succeeded'&&receipt.result?.state==='succeeded'){row.interruption={kind:'controller aborted official host after actual terminal native receipt',executionId:review.executionId};controller.abort();}}}catch{}finally{watching=false;}},25);
+    const input=injected&&host==='claude'?'/'+selected+' '+prompt:prompt;
     try{
       if(host==='codex'){
-        if(session)thread=sdk.resumeThread(session,options);
-        const stream=await thread.runStreamed(input,{signal:controller.signal});
-        for await(const event of stream.events){if(event.type==='thread.started')session=event.thread_id;if(event.type==='item.completed'){const item=event.item;if(item.type==='command_execution')row.tools.push({name:'command_execution',command:item.command,exitCode:item.exit_code,output:item.aggregated_output});else if(item.type==='agent_message')row.answer=(row.answer??'')+item.text;}if(event.type==='turn.completed')row.usage=event.usage;if(event.type==='turn.failed')throw Error(event.error.message);if(event.type==='error')row.error=event.message;}
-        session=thread.id;
+        session=await codexTurn({env,workspace,context,session,prompt:input,skill:injected?{name:selected,path:skillPath}:undefined,signal:controller.signal,row,onSession:id=>session=id});
       }else {
         const {query}=await import('./node_modules/@anthropic-ai/claude-agent-sdk/sdk.mjs');
         const stream=query({prompt:input,options:{cwd:workspace,resume:session,model:'gpt-6-luna',effort:'xhigh',maxTurns:20,persistSession:true,settingSources:['user'],env,abortController:controller,tools:['Read','Glob','Grep','Skill','Write','Bash'],permissionMode:'bypassPermissions',allowDangerouslySkipPermissions:true,systemPrompt:{type:'preset',preset:'claude_code',append:context},mcpServers:{}}});
         for await(const message of stream){if(message.session_id)session=message.session_id;if(message.type==='system'&&message.subtype==='init'){row.discoveredSkills=(message.slash_commands??[]).filter(name=>manifest.skills.includes(name));row.observedModel=message.model;}
           if(message.type==='assistant'){if(message.message?.id&&!row.responses.some(r=>r.id===message.message.id))row.responses.push({id:message.message.id,usage:message.message.usage,model:message.message.model});for(const block of message.message?.content??[]){if(block.type==='tool_use')row.tools.push({name:block.name,input:block.input});if(block.type==='text')row.answer=(row.answer??'')+block.text;}}
+          if(message.type==='user')for(const block of message.message?.content??[])if(block.type==='tool_result')row.toolResults=[...(row.toolResults??[]),{id:block.tool_use_id,isError:block.is_error,content:block.content}];
           if(message.type==='result'){row.usage=message.usage;if(message.is_error)throw Error(JSON.stringify({subtype:message.subtype,errors:message.errors}));}
         }
       }
-    }catch(error){row.error=error.message;throw error;}
-    finally{clearTimeout(timeout);row.completedAt=new Date().toISOString();row.milliseconds=performance.now()-started;row.sessionId=session;if(host==='codex'&&session)row.responses=await codexResponses(configRoot,session,row.startedAt,row.completedAt);row.commands=await commandMetrics(stateRoot,row.startedAt,row.completedAt);row.activity=activity(row.tools,injected);await save();console.log(JSON.stringify({host,kind,activation,index,phase,milliseconds:Math.round(row.milliseconds),responses:row.responses.length,commands:row.commands.map(c=>c.command),state:row.error?'failed':'completed'}));}
-    assert.ok(session,'Native persisted session ID missing');assert.ok(row.answer?.trim(),'No user-facing result');sample.issues.push(...performanceIssues(row,kind,injected,phase));return row;
+    }catch(error){row.error=error.message;if(!row.interruption)throw error;}
+    finally{clearTimeout(timeout);clearInterval(receiptWatcher);row.completedAt=new Date().toISOString();row.milliseconds=performance.now()-started;row.sessionId=session;if(host==='codex'&&session)row.responses=await codexResponses(configRoot,session,row.startedAt,row.completedAt);row.commands=await commandMetrics(stateRoot,row.startedAt,row.completedAt);row.activity=activity(row.tools,injected);await save();console.log(JSON.stringify({host,kind,activation,index,phase,milliseconds:Math.round(row.milliseconds),responses:row.responses.length,commands:row.commands.map(c=>c.command),state:row.interruption?'interrupted':row.error?'failed':'completed'}));}
+    assert.ok(session,'Native persisted session ID missing');if(!row.interruption)assert.ok(row.answer?.trim(),'No user-facing result');if(phase==='plan')assert.deepEqual([...new Set(row.discoveredSkills??[])].sort(),[...manifest.skills].sort(),'Official host did not discover all ten skills');if(fault.interruptReviewId)assert.ok(row.interruption,'Official host was not interrupted after the native receipt');if(kind!=='workflows')sample.issues.push(...performanceIssues(row,kind,injected,phase));else if(!row.responses.length)sample.issues.push('Native response IDs were not measured');return row;
   }
-  return {sample,turn,stateRoot,staged};
+  return {sample,turn,stateRoot,staged,binding:{...binding,stateRoot},configPath:config,processRun};
 }
 try{
-  assert.ok(['codex','claude'].includes(host));assert.ok(['task','travel'].includes(kind));assert.ok(['implicit','injected'].includes(activation));assert.ok(process.env.EVALUATION_TOKEN,'Required evaluation credential missing');assert.equal(manifest.sourceSha,process.env.GITHUB_SHA);assert.equal(manifest.runId,process.env.GITHUB_RUN_ID);
+  assert.ok(['codex','claude'].includes(host));assert.ok(['task','travel','workflows'].includes(kind));assert.ok(['implicit','injected'].includes(activation));assert.ok(process.env.EVALUATION_TOKEN,'Required evaluation credential missing');assert.equal(manifest.sourceSha,process.env.GITHUB_SHA);assert.equal(manifest.runId,process.env.GITHUB_RUN_ID);
   for(let index=1;index<=count;index++){
     const c=await prepareSample(index),before=await snapshot();
     try{
+      if(kind==='workflows'){await workflowCases(c,{snapshot,markdownFiles,save});c.sample.passed=c.sample.issues.length===0;await save();continue;}
       const planned=await c.turn(kind==='task'?taskPrompt(c.sample.name):travelPrompt(c.sample.name),'plan');assert.equal(await snapshot(),before,'Business Markdown changed before approval');
       const reviews=(await fs.readdir(path.join(c.stateRoot,'reviews'))).filter(name=>name.endsWith('.json'));assert.equal(reviews.length,1,'Expected one actual immutable review');const review=JSON.parse(await fs.readFile(path.join(c.stateRoot,'reviews',reviews[0]),'utf8'));assert.equal(review.state,'review-ready');assert.equal(review.plan.steps.length,1);const step=review.plan.steps[0];assert.equal(step.action,kind==='task'?'task.create':'entity.create');
       assert.ok(planned.answer.includes(review.id)||planned.answer.includes(path.join(c.stateRoot,'previews',review.id+'.md')),'User was not given the actual full preview');
@@ -74,6 +75,6 @@ try{
     }catch(error){c.sample.issues.push(error.message);c.sample.passed=false;}
     await save();
   }
-  const required=profile==='smoke'?1:3;report.passed=count===required&&report.samples.length===required&&report.samples.every(sample=>sample.passed);report.summary={samples:report.samples.length,passed:report.samples.filter(sample=>sample.passed).length,phaseMaximumMs:Object.fromEntries(['plan','commit'].map(phase=>[phase,Math.max(0,...report.samples.flatMap(sample=>sample.turns.filter(turn=>turn.phase===phase).map(turn=>turn.milliseconds)))]))};
+  const required=kind==='workflows'||profile==='smoke'?1:3;report.passed=count===required&&report.samples.length===required&&report.samples.every(sample=>sample.passed);report.summary={samples:report.samples.length,passed:report.samples.filter(sample=>sample.passed).length,phaseMaximumMs:Object.fromEntries(['plan','commit'].map(phase=>[phase,Math.max(0,...report.samples.flatMap(sample=>sample.turns.filter(turn=>turn.phase===phase).map(turn=>turn.milliseconds)))]))};
 }catch(error){report.error={message:error.message};}
 await save();if(!report.passed)process.exitCode=1;console.log(redacted({passed:report.passed,summary:report.summary,error:report.error,issues:report.samples.flatMap(sample=>sample.issues)}));

@@ -22,6 +22,12 @@ jobs:
         with: { node-version: '24.21.0', cache: npm }
       - run: npm ci --ignore-scripts
       - run: npm run typecheck
+      - name: Check harness and release-gate syntax before compiling the candidate
+        run: |
+          node --check tools/behavior/run.mjs
+          node --check tools/behavior/codex-host.mjs
+          node --check tools/behavior/workflows.mjs
+          node --check tools/release-gate.mjs
       - run: npm run build
       - run: npm run verify:package
       - uses: actions/upload-artifact@v4
@@ -117,15 +123,18 @@ jobs:
         host: [codex, claude]
         case: [task, travel]
         activation: [implicit, injected]
+        include:
+          - {host: codex, case: workflows, activation: implicit}
+          - {host: claude, case: workflows, activation: implicit}
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       EVALUATION_TOKEN: ${{ secrets.EVALUATION_TOKEN }}
       BEHAVIOR_HOST: ${{ matrix.host }}
       BEHAVIOR_CASE: ${{ matrix.case }}
       BEHAVIOR_ACTIVATION: ${{ matrix.activation }}
       BEHAVIOR_PROFILE: ${{ inputs.behavior }}
-      BEHAVIOR_SAMPLES: ${{ inputs.behavior == 'full' && '3' || '1' }}
+      BEHAVIOR_SAMPLES: ${{ inputs.behavior == 'full' && matrix.case != 'workflows' && '3' || '1' }}
     steps:
       - uses: actions/checkout@v4
         with: {persist-credentials: false}
@@ -169,3 +178,22 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with: {name: native-publication, path: artifacts/, if-no-files-found: error}
+  release-gate:
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.behavior == 'full'
+    needs: [build, foundation, native, publication, installation, behavior]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '24.21.0'}
+      - uses: actions/download-artifact@v4
+        with: {path: evidence/}
+      - name: Require complete reports and identical candidate identity from every layer
+        env:
+          REQUIRED_RESULTS: ${{ toJSON(needs) }}
+        run: node tools/release-gate.mjs evidence
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: release-decision,path: artifacts/release-decision.json,if-no-files-found: error}

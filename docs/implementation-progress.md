@@ -71,3 +71,7 @@
 - 十技能重写将使用已实现的业务 CLI；动态章节和写作要求由 draft 返回，避免复制整套机器流程。
 - 官方 Claude/Codex 宿主固定 gpt-6-luna / xhigh；测试使用隔离真实 Obsidian，不继承旧合成桌面 harness。自然发现、预载技能、批准/取消/恢复和三次独立会话速度均需保存证据。
 - 发行包含可核验的十技能、单一运行时、独立暂存/切换安装器及来源清单；当前尚未切换用户安装。
+- run [38165773831](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38165773831)，候选 `71248d95dfe0279e8b6e08845419691474cbfa4f`：build、双平台 foundation（59 用例/平台）、双平台 installation（10 技能入口/平台）、native 和 publication 全部 success。十入口在隐藏构建来源、无旧目录的临时安装仍运行；真实任务 8、实体 4、业务 34、发布 23 场景通过。该 push 未执行 behavior，不是发行通过。
+- 同源码 smoke run [38174593104](https://github.com/Self-Command/cosmos-obsidian/actions/runs/38174593104)：8 组模型检查均未通过。Codex 四组和 Claude 任务两组在首个预览前超时；Claude 游记两组真实生成/提交成功，但重复尝试或多余查询、响应回合超标。所有失败保存，不更换模型或放宽速度门槛。
+- smoke 发现两项具体缺口：游记标签顶层格式示例不完整；手写 XML 预载没有触发官方原生加载。修正示例和普通创建职责边界；新 Codex 使用同一 0.162.1 官方 app-server 的 `skill` 输入，Claude 使用原生 slash 调用。新增歧义/多文件项目/合法生命周期/取消恢复与实际终端回执后宿主中断；新候选待 Actions 验证。
+- 新发行汇总检查每层的 run/attempt、候选清单、报告实际用例、单样本速度及所有必需 job；missing/skipped/empty/smoke 均拒绝发行。D6 尚未闭合，旧安装保持冻结。

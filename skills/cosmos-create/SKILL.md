@@ -1,12 +1,12 @@
 ---
 name: cosmos-create
-description: 在宇宙知识库按当前模板创建普通实体或已登记分类的笔记。任务、周期记录和网站发布采用各自业务入口。
+description: 在宇宙知识库创建速记、资源、假设或用户明确指定的普通分类笔记。游记与现实记录用 cosmos-life；项目用 cosmos-project；研读与认知用 cosmos-learn。
 compatibility: Node 24、已绑定的 Obsidian CLI。
 ---
 
 明确笔记承担的职责，优先使用用户指定的已登记分类；缺少影响类型或事实的重要信息时询问。正文提供可回看的判断、依据和具体内容，未知信息说明原因。
 
-入口：`node "<本技能实际目录>/scripts/cosmos.mjs"`。用 `draft open --input <库外 UTF-8 JSON>` 提交名称、entity 或 category、必要 attributes/relations/tags。例如 `{"category":"速记","name":"会议中的想法"}`。不知道当前登记值时用 `query model` 获取所需类别；不用遍历全库模板。
+入口：`node "<本技能实际目录>/scripts/cosmos.mjs"`。用 `draft open --input <库外 UTF-8 JSON>` 提交名称、entity 或 category、必要 attributes/relations/tags。例如 `{"category":"速记","name":"会议中的想法","tags":["会议"]}`。tags 和 relations 在顶层，状态省略时采用当前默认值。用户已指定分类时由 draft 解析；分类缺失且职责不明确时用 `query model` 获取所需类别。
 
 按 `contentContract.fields` 返回的字段 id、guidance 和结构填写 `{"fields":{"id":"完整 Markdown"}}`，再用 `draft preview --draft <draftId> --input <正文 JSON>`。已有完整字段内容可直接 `entity preview`。
 
