@@ -57,9 +57,11 @@ const body=`# 雨后山城一日游记
 it('accepts supplied itinerary facts in Chinese and colon time formats',()=>{
   expect(qualityIssues('travel',body)).toEqual([]);
   expect(qualityIssues('travel',body.replace('8点','08:00').replace('9点','09:00').replace('下午2点','14:00'))).toEqual([]);
+  expect(qualityIssues('travel',body.replace('下午2点乘公交回家','| 2026-10-10 下午 | 2点乘公交回家 |'))).toEqual([]);
 });
 
 it('rejects omitted itinerary details even when chapters and scene labels remain',()=>{
   expect(qualityIssues('travel',body.replace('9点','上午'))).toContain('Missing supplied travel fact: 09:00 market walk');
   expect(qualityIssues('travel',body.replace('约2公里','一段路'))).toContain('Missing supplied travel fact: two-kilometre river walk');
+  expect(qualityIssues('travel',body.replace('下午2点','下午'))).toContain('Missing supplied travel fact: 14:00 bus return');
 });

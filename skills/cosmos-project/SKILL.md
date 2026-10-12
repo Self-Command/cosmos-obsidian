@@ -10,4 +10,4 @@ compatibility: Node 24、已绑定的 Obsidian CLI；任务需要 TaskNotes。
 
 按返回字段和 guidance 写实质内容，保留表头与标签；未知信息在单元格说明原因，没有日期可写“尚未排期”，不留空单元格。用 `draft preview --draft <draftId> --input <正文 JSON>`，输入为 `{"fields":{"实际字段id":"Markdown正文"}}`。项目及任务等多个文件用一个 `change preview` 方案：`{"actions":[{"action":"entity.create","entity":"project","name":"项目名","content":{"fields":{"实际字段id":"Markdown正文"}}},{"action":"task.create","title":"任务名","relations":{"project":"项目名"},"details":"具体行动和完成标准"}]}`。正文填满 draft open 返回的实际字段，任务关系由代码解析，不必另加载任务技能。用标准输入或库外 UTF-8 JSON；需要其他动作格式时读取 `help change preview`。
 
-展示精确文件组合、关系、正文要点和 `preview.path` 全文链接。审阅批准后一次 `review commit --review <reviewId> --confirm`；它自动复检。部分失败说明已完成和余项，查询原执行，不能重复创建整个组合。
+展示精确文件组合、关系、正文要点和 `preview.link` 实际全文链接。审阅批准后一次 `review commit --review <reviewId> --confirm`；它自动复检。部分失败说明已完成和余项，查询原执行，不能重复创建整个组合。

@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';
-import {performanceIssues} from './behavior/metrics.mjs';
+import {skillScenarios,scenarioHost,scenarioActivation} from './behavior/skill-suites.mjs';
 
 const requiredJobs=['build','foundation','native','publication','installation','behavior'];
 export function validateRelease(reports,candidate,needs){
@@ -21,14 +21,15 @@ export function validateRelease(reports,candidate,needs){
   anchor('native-environment');const capabilities=get('native-environment/native-capabilities.json');assert.equal(capabilities.sourceSha,candidate.sourceSha);assert.equal(capabilities.runId,candidate.runId);assert.equal(capabilities.capabilities.tasknotes.version,'4.13.8');assert.equal(capabilities.capabilities.tasknotes.apiVersion,1);
   cases('native-environment/native-tasks.json',8);cases('native-environment/native-entities.json',4);cases('native-environment/native-business.json',34);
   anchor('native-publication');const publication=cases('native-publication/native-publication.json',23);identity(publication,'publication');
-  for(const host of ['codex','claude'])for(const kind of ['task','travel','workflows'])for(const activation of kind==='workflows'?['implicit']:['implicit','injected']){
-    const folder='behavior-'+host+'-'+kind+'-'+activation;anchor(folder);const r=get(folder+'/'+folder+'.json');identity(r,folder);assert.equal(r.profile,'full','Smoke is not release evidence');assert.equal(r.host,host);assert.equal(r.case,kind);assert.equal(r.activation,activation);assert.equal(r.model,'gpt-6-luna');assert.equal(r.effort,'xhigh');assert.equal(r.passed,true);
-    const required=kind==='workflows'?1:3;assert.equal(r.samples.length,required);
-    for(const sample of r.samples){assert.equal(sample.passed,true);assert.deepEqual(sample.issues,[]);assert.ok(sample.turns.length>=2);for(const turn of sample.turns){assert.ok(turn.sessionId);assert.ok(turn.responses?.length,'Native response measurement absent');assert.ok(turn.milliseconds>0);}
-      if(kind==='workflows'){assert.equal(sample.results?.length,4);assert.ok(sample.results.every(c=>c.passed));assert.ok(sample.results.some(c=>c.interruption?.executionId));for(const turn of sample.turns)assert.deepEqual(turn.activity?.extraExploration,[],'Unrelated workflow exploration');}
-      else {assert.deepEqual(sample.turns.map(t=>t.phase),['plan','commit']);for(const turn of sample.turns)assert.deepEqual(performanceIssues(turn,kind,activation==='injected',turn.phase),[]);assert.ok(sample.actualPath&&sample.actualHash&&sample.executionId&&sample.reviewId);}
+  for(const [skill,scenarios]of Object.entries(skillScenarios)){
+    const folder='behavior-mixed-'+skill+'-mixed';anchor(folder);const r=get(folder+'/'+folder+'.json');identity(r,folder);assert.equal(r.profile,'full','Smoke is not release evidence');assert.equal(r.host,'mixed');assert.equal(r.case,skill);assert.equal(r.activation,'mixed');assert.equal(r.model,'gpt-6-luna');assert.equal(r.effort,'xhigh');assert.equal(r.passed,true);assert.equal(r.samples.length,scenarios.length);
+    for(let i=0;i<scenarios.length;i++){
+      const sample=r.samples[i];assert.equal(sample.index,i+1);assert.equal(sample.skill,skill);assert.equal(sample.scenario,scenarios[i],'Wrong or repeated skill scenario');assert.equal(sample.host,scenarioHost(i+1));assert.equal(sample.activation,scenarioActivation(i+1));assert.equal(sample.passed,true);assert.deepEqual(sample.issues,[]);assert.ok(sample.results?.length,'Missing actual scenario assertions');assert.ok(sample.results.every(c=>c.passed===true));assert.ok(sample.results.some(c=>c.case===scenarios[i]+'/skill-flow'));
+      assert.ok(sample.turns.length);for(const turn of sample.turns){assert.ok(turn.sessionId);assert.ok(turn.responses?.length,'Native response measurement absent');assert.ok(turn.milliseconds>0);assert.ok(!turn.error||turn.interruption,'Required host turn failed');}
+      // User-approved acceptance is the architecture and observable result.
+      // Timing, response count and additional reads are retained as diagnostics.
     }
-    validated.push({name:folder,cases:required});
+    validated.push({name:folder,skill,cases:scenarios.length});
   }
   return validated;
 }

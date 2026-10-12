@@ -10,4 +10,4 @@ compatibility: Node 24、已绑定的 Obsidian CLI、库内发布服务与受控
 
 先展示本地内容的完整预览；上传另用 `query publication` 选择准确身份，以 `publish preview` 的 upload 生成全部远端正文、附件、成员和网址预览。只读复检用 `execution verify`；清单保存失败按返回 recovery 生成原批次 recover 预览，保留原分支与提交。
 
-每次展示实际公开范围、警告和 `preview.path` 全文链接。用户审阅批准相应范围后用一次 `publish commit --review <reviewId> --confirm`。上传、PR 合并、部署和页面核验分别报告；未闭合批次用 resume/refresh 的新预览，未知结果先查询原执行，不能重新上传。
+每次展示实际公开范围、警告和 `preview.link` 实际全文链接。用户审阅批准相应范围后用一次 `publish commit --review <reviewId> --confirm`。上传、PR 合并、部署和页面核验分别报告；未闭合批次用 resume/refresh 的新预览，未知结果先查询原执行，不能重新上传。

@@ -22,6 +22,9 @@ export function planSummary(plan: Plan, vaultPath?:string) {
       recycle:step.expected.absent||undefined };
   }), warnings:plan.warnings };
 }
+export function previewLocation(file:string) {
+  return {path:file,format:'markdown',link:'[查看完整预览](<'+file.replaceAll('\\','/')+'>)'};
+}
 export class Reviews {
   store: Store;
   constructor(public adapter: Obsidian) { this.store = adapter.store; }
@@ -35,11 +38,11 @@ export class Reviews {
     const review: Review = { id, bindingId: this.adapter.config.bindingId, state: 'review-ready', plan, planHash: fingerprint(plan), preview, previewHash: fingerprint(preview), createdAt: new Date().toISOString() };
     await this.store.write('reviews', id, review);
     await this.store.atomic(this.store.file('previews', id), preview);
-    return { ok: true, state: 'review-ready', reviewId: id, summary:planSummary(plan,this.adapter.config.vaultPath), preview: { path: this.store.file('previews', id), format: 'markdown' }, next: { state:'awaiting-user-review', requiresUserApproval:true, instruction:'展示完整预览链接并等待用户审阅后的确认；创建请求不等于对此预览的批准。', command: 'review commit', reviewId: id } };
+    return { ok: true, state: 'review-ready', reviewId: id, summary:planSummary(plan,this.adapter.config.vaultPath), preview: previewLocation(this.store.file('previews', id)), next: { state:'awaiting-user-review', requiresUserApproval:true, instruction:'直接展示 preview.link 中的实际完整预览链接，并等待用户审阅后的确认。', command: 'review commit', reviewId: id } };
   }
   async show(id: string) {
     const review = await this.store.read<Review>('reviews', id); this.store.assertReview(review, this.adapter.config.bindingId);
-    return { ok: true, state: review.state, reviewId: id, preview: { path: this.store.file('previews', id), content: review.preview, format: 'markdown' }, executionId: review.executionId };
+    return { ok: true, state: review.state, reviewId: id, preview: { ...previewLocation(this.store.file('previews', id)), content: review.preview }, executionId: review.executionId };
   }
   async cancel(id: string) {
     const release = await this.store.lock(this.adapter.config.bindingId, newId('e'));

@@ -10,4 +10,4 @@ compatibility: Node 24、已绑定的 Obsidian CLI。
 
 把实际模板 `contentContract.fields` 的各章节填成 `{"fields":{"id":"完整 Markdown"}}`，保留表头、标签和查询，执行 `draft preview --draft <draftId> --input <正文 JSON>`。多份关联文件用一次 `change preview`，不额外建立不需要的课题或项目。
 
-展示来源、判断边界、实际关系和 `preview.path` 全文链接。审阅批准后一次 `review commit --review <reviewId> --confirm`，自动复检。取消或中断沿用原 ID；结果不确定先 `execution verify`，不重复写入。
+展示来源、判断边界、实际关系和 `preview.link` 实际全文链接。审阅批准后一次 `review commit --review <reviewId> --confirm`，自动复检。取消或中断沿用原 ID；结果不确定先 `execution verify`，不重复写入。

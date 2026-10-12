@@ -27,6 +27,7 @@ jobs:
           node --check tools/behavior/run.mjs
           node --check tools/behavior/codex-host.mjs
           node --check tools/behavior/workflows.mjs
+          node --check tools/behavior/skill-suites.mjs
           node --check tools/release-gate.mjs
       - run: npm run build
       - run: npm run verify:package
@@ -119,17 +120,12 @@ jobs:
     strategy:
       fail-fast: false
       max-parallel: 1
-      matrix:
-        host: [codex, claude]
-        case: [task, travel]
-        activation: [implicit, injected]
-        include:
-          - {host: codex, case: workflows, activation: implicit}
-          - {host: claude, case: workflows, activation: implicit}
+      matrix: ${{ fromJSON(inputs.behavior == 'full' && '{"include":[{"host":"mixed","case":"cosmos-plan","activation":"mixed"},{"host":"mixed","case":"cosmos-tasks","activation":"mixed"},{"host":"mixed","case":"cosmos-create","activation":"mixed"},{"host":"mixed","case":"cosmos-project","activation":"mixed"},{"host":"mixed","case":"cosmos-learn","activation":"mixed"},{"host":"mixed","case":"cosmos-life","activation":"mixed"},{"host":"mixed","case":"cosmos-evolve","activation":"mixed"},{"host":"mixed","case":"cosmos-files","activation":"mixed"},{"host":"mixed","case":"cosmos-amytis","activation":"mixed"},{"host":"mixed","case":"cosmos-check","activation":"mixed"}]}' || '{"host":["codex","claude"],"case":["task","travel"],"activation":["implicit","injected"]}') }}
     runs-on: windows-latest
     timeout-minutes: 45
     env:
       EVALUATION_TOKEN: ${{ secrets.EVALUATION_TOKEN }}
+      PUBLICATION_TOKEN: ${{ matrix.case == 'cosmos-amytis' && secrets.PUBLICATION_TOKEN || '' }}
       BEHAVIOR_HOST: ${{ matrix.host }}
       BEHAVIOR_CASE: ${{ matrix.case }}
       BEHAVIOR_ACTIVATION: ${{ matrix.activation }}
@@ -148,6 +144,9 @@ jobs:
       - shell: pwsh
         run: ./tools/native/setup.ps1
       - run: node tools/native/probe.mjs
+      - if: matrix.case == 'cosmos-amytis'
+        shell: pwsh
+        run: ./tools/native/publication-setup.ps1
       - name: Required model in official persisted host and real isolated Obsidian
         run: node tools/behavior/run.mjs
       - uses: actions/upload-artifact@v4

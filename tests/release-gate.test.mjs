@@ -1,5 +1,6 @@
 import {it,expect} from 'vitest';
 import {validateRelease} from '../tools/release-gate.mjs';
+import {skillScenarios,scenarioHost,scenarioActivation} from '../tools/behavior/skill-suites.mjs';
 
 function completeEvidence(){
   const candidate={sourceSha:'a'.repeat(40),runId:'123',attempt:'1',files:{}},reports={},needs=Object.fromEntries(['build','foundation','native','publication','installation','behavior'].map(name=>[name,{result:'success'}]));
@@ -8,16 +9,17 @@ function completeEvidence(){
   anchor('native-environment');reports['native-environment/native-capabilities.json']={...identity,capabilities:{tasknotes:{version:'4.13.8',apiVersion:1}}};
   for(const [name,count]of [['tasks',8],['entities',4],['business',34]])reports['native-environment/native-'+name+'.json']={sourceSha:candidate.sourceSha,results:Array.from({length:count},()=>({passed:true}))};
   anchor('native-publication');reports['native-publication/native-publication.json']={...identity,results:Array.from({length:23},()=>({passed:true}))};
-  for(const host of ['codex','claude'])for(const kind of ['task','travel','workflows'])for(const activation of kind==='workflows'?['implicit']:['implicit','injected']){
-    const folder='behavior-'+host+'-'+kind+'-'+activation;anchor(folder);const turn=phase=>({phase,milliseconds:1000,responses:[{id:'native-1'}],sessionId:'persisted-1',activity:{extraExploration:[]},commands:(phase==='commit'?['review commit']:kind==='task'?['task preview']:['draft open','draft preview']).map(command=>({command}))});
-    reports[folder+'/'+folder+'.json']={...identity,host,case:kind,activation,profile:'full',model:'gpt-6-luna',effort:'xhigh',passed:true,samples:Array.from({length:kind==='workflows'?1:3},()=>({passed:true,issues:[],reviewId:'r-1',executionId:'e-1',actualPath:'note.md',actualHash:'c'.repeat(64),turns:[turn('plan'),turn('commit')],results:Array.from({length:4},()=>({passed:true,interruption:{executionId:'e-1'}}))}))};
+  for(const [skill,scenarios]of Object.entries(skillScenarios)){
+    const folder='behavior-mixed-'+skill+'-mixed';anchor(folder);
+    reports[folder+'/'+folder+'.json']={...identity,host:'mixed',case:skill,activation:'mixed',profile:'full',model:'gpt-6-luna',effort:'xhigh',passed:true,samples:scenarios.map((scenario,i)=>({index:i+1,skill,scenario,host:scenarioHost(i+1),activation:scenarioActivation(i+1),passed:true,issues:[],turns:[{phase:'plan',milliseconds:1000,responses:[{id:'native-1'}],sessionId:'persisted-1',activity:{extraExploration:[]}}],results:[{case:scenario+'/skill-flow',passed:true}]}))};
   }
   return {candidate,reports,needs};
 }
 
-it('requires complete, matching, successful evidence and all individual latency samples',()=>{const {reports,candidate,needs}=completeEvidence();expect(validateRelease(reports,candidate,needs)).toHaveLength(18);});
-it.each(['missing-job','skipped-job','wrong-candidate','missing-report','empty-native','smoke','missing-sample','slow-sample','unmeasured','exploration','workflow-exploration','skipped-test'])('blocks release when %s is present',problem=>{
-  const {reports,candidate,needs}=completeEvidence(),name='behavior-codex-task-implicit/behavior-codex-task-implicit.json',behavior=reports[name];
+it('requires complete, matching evidence for three distinct scenarios of every skill',()=>{const {reports,candidate,needs}=completeEvidence();expect(validateRelease(reports,candidate,needs)).toHaveLength(18);});
+it('records response count, latency and additional reads without rejecting a correct architecture flow',()=>{const {reports,candidate,needs}=completeEvidence(),turn=reports['behavior-mixed-cosmos-tasks-mixed/behavior-mixed-cosmos-tasks-mixed.json'].samples[0].turns[0];turn.milliseconds=180001;turn.responses=Array.from({length:8},(_,i)=>({id:'native-'+i}));turn.activity.extraExploration=[{kind:'extra-skill-loading'}];expect(validateRelease(reports,candidate,needs)).toHaveLength(18);});
+it.each(['missing-job','skipped-job','wrong-candidate','missing-report','empty-native','smoke','missing-sample','repeated-scenario','failed-case','failed-turn','unmeasured','skipped-test'])('blocks release when %s is present',problem=>{
+  const {reports,candidate,needs}=completeEvidence(),name='behavior-mixed-cosmos-tasks-mixed/behavior-mixed-cosmos-tasks-mixed.json',behavior=reports[name];
   if(problem==='missing-job')delete needs.behavior;
   if(problem==='skipped-job')needs.behavior.result='skipped';
   if(problem==='wrong-candidate')reports['installation-windows-latest/installation.json'].candidate.sourceSha='d'.repeat(40);
@@ -25,10 +27,10 @@ it.each(['missing-job','skipped-job','wrong-candidate','missing-report','empty-n
   if(problem==='empty-native')reports['native-environment/native-business.json'].results=[];
   if(problem==='smoke')behavior.profile='smoke';
   if(problem==='missing-sample')behavior.samples.pop();
-  if(problem==='slow-sample')behavior.samples[2].turns[0].milliseconds=90001;
-  if(problem==='unmeasured')behavior.samples[1].turns[1].responses=[];
-  if(problem==='exploration')behavior.samples[0].turns[0].activity.extraExploration.push({kind:'directory-or-content-scan'});
-  if(problem==='workflow-exploration')reports['behavior-codex-workflows-implicit/behavior-codex-workflows-implicit.json'].samples[0].turns[0].activity.extraExploration.push({kind:'directory-or-content-scan'});
+  if(problem==='repeated-scenario')behavior.samples[2].scenario=behavior.samples[0].scenario;
+  if(problem==='failed-case')behavior.samples[1].results[0].passed=false;
+  if(problem==='failed-turn')behavior.samples[2].turns[0].error='Native host could not complete';
+  if(problem==='unmeasured')behavior.samples[1].turns[0].responses=[];
   if(problem==='skipped-test')reports['foundation-windows-latest/tests.json'].numPendingTests=1;
   expect(()=>validateRelease(reports,candidate,needs)).toThrow();
 });

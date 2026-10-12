@@ -10,7 +10,9 @@ import {taskPrompt,travelPrompt,qualityIssues} from './cases.mjs';
 import {activity,codexResponses,commandMetrics,performanceIssues} from './metrics.mjs';
 import {workflowCases} from './workflows.mjs';
 import {codexTurn} from './codex-host.mjs';
+import {skillSuite,skillScenarios,scenarioHost,scenarioActivation,setupSkillPublication} from './skill-suites.mjs';
 const host=process.env.BEHAVIOR_HOST,kind=process.env.BEHAVIOR_CASE??'task',activation=process.env.BEHAVIOR_ACTIVATION??'implicit',profile=process.env.BEHAVIOR_PROFILE??'full',count=Number(process.env.BEHAVIOR_SAMPLES??3);
+const isSkillSuite=Object.hasOwn(skillScenarios,kind);
 const manifest=JSON.parse(await fs.readFile('dist/manifest.json','utf8')),binding=JSON.parse(await fs.readFile(process.env.COSMOS_CONFIG,'utf8')),reportFile='artifacts/behavior-'+host+'-'+kind+'-'+activation+'.json';
 const report={sourceSha:process.env.GITHUB_SHA,runId:process.env.GITHUB_RUN_ID,candidate:manifest,profile,host,case:kind,activation,model:'gpt-6-luna',effort:'xhigh',gateway:'existing configured evaluation gateway',nativeBackend:'official Obsidian 1.14.4 / TaskNotes 4.13.8; no simulated native services',node:process.version,platform:process.platform,sdk:host==='codex'?'official app-server 0.162.1':'0.3.295',permissions:'isolated synthetic CI only; caller approval declaration remains the CLI trust boundary',samples:[],passed:false};
 const redacted=value=>JSON.stringify(value,null,2).replaceAll(process.env.EVALUATION_TOKEN||'a-value-that-is-not-a-secret','[REDACTED]');
@@ -23,28 +25,29 @@ const snapshot=async()=>JSON.stringify(await markdownFiles(binding.vaultPath));
 const day=offset=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+offset*86400000));
 const currentDate=day(0),taskDate=day(1),context='当前日期 '+currentDate+'，时区 Asia/Shanghai。当前工作区用于隔离的宇宙知识库合成验收；业务连接已安装。禁止使用子代理。';
 async function prepareSample(index){
-  const directory=path.join(process.env.COSMOS_NATIVE_ROOT,'behavior-'+host+'-'+kind+'-'+activation+'-'+index),workspace=path.join(directory,'workspace'),evaluationHome=path.join(directory,'home'),stateRoot=path.join(directory,'state'),config=path.join(directory,'binding.json'),installRoot=path.join(directory,'install');
+  const actualHost=isSkillSuite?scenarioHost(index):host,actualActivation=isSkillSuite?scenarioActivation(index):activation;
+  const directory=path.join(process.env.COSMOS_NATIVE_ROOT,'behavior-'+actualHost+'-'+kind+'-'+actualActivation+'-'+index),workspace=path.join(directory,'workspace'),evaluationHome=path.join(directory,'home'),stateRoot=path.join(directory,'state'),config=path.join(directory,'binding.json'),installRoot=path.join(directory,'install');
   await fs.mkdir(workspace,{recursive:true});await fs.mkdir(evaluationHome,{recursive:true});await fs.mkdir(stateRoot,{recursive:true});await fs.writeFile(config,JSON.stringify({...binding,stateRoot}));await fs.writeFile(path.join(workspace,'AGENTS.md'),'Do not use subagents or delegate work. This workspace contains only synthetic evaluation inputs.\n');
-  const staged=await installer(['stage','--root',installRoot,'--config',config]),discovery=host==='codex'?path.join(workspace,'.agents','skills'):path.join(evaluationHome,'.claude','skills'),destinations=path.join(directory,'destinations.json');await fs.writeFile(destinations,JSON.stringify([discovery]));const proposed=await installer(['plan','--root',installRoot,'--destinations',destinations]);assert.equal((await installer(['switch','--root',installRoot,'--installation',proposed.installationId,'--confirm'])).state,'complete');
-  const selected=kind==='travel'?'cosmos-life':'cosmos-tasks',skillPath=path.join(discovery,selected,'SKILL.md'),configRoot=path.join(evaluationHome,host==='codex'?'.codex':'.claude');await fs.mkdir(configRoot,{recursive:true});
+  const staged=await installer(['stage','--root',installRoot,'--config',config]),discovery=actualHost==='codex'?path.join(workspace,'.agents','skills'):path.join(evaluationHome,'.claude','skills'),destinations=path.join(directory,'destinations.json');await fs.writeFile(destinations,JSON.stringify([discovery]));const proposed=await installer(['plan','--root',installRoot,'--destinations',destinations]);assert.equal((await installer(['switch','--root',installRoot,'--installation',proposed.installationId,'--confirm'])).state,'complete');
+  const selected=isSkillSuite?kind:kind==='travel'?'cosmos-life':'cosmos-tasks',skillPath=path.join(discovery,selected,'SKILL.md'),configRoot=path.join(evaluationHome,actualHost==='codex'?'.codex':'.claude');await fs.mkdir(configRoot,{recursive:true});
   const env={...process.env,HOME:evaluationHome,USERPROFILE:evaluationHome,CODEX_HOME:configRoot,CLAUDE_CONFIG_DIR:configRoot,COSMOS_CONFIG:config,COSMOS_TRACE:'1',COSMOS_EVAL_KEY:process.env.EVALUATION_TOKEN,ANTHROPIC_AUTH_TOKEN:process.env.EVALUATION_TOKEN,ANTHROPIC_BASE_URL:'https://4router.net',CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:'1',CLAUDE_CODE_EFFORT_LEVEL:'xhigh'};
   // Scope credentials to the native host environment, never to the report or installed package.
   delete env.PUBLICATION_TOKEN;delete env.CHATGPT_API_KEY;delete env.OPENAI_API_KEY;
   let session;
-  if(host==='codex')await fs.writeFile(path.join(configRoot,'config.toml'),'model = "gpt-6-luna"\nmodel_provider = "evaluation"\nmodel_reasoning_effort = "xhigh"\nweb_search = "disabled"\n[features]\nmulti_agent = false\n[model_providers.evaluation]\nname = "Configured evaluation gateway"\nbase_url = "https://4router.net/v1"\nenv_key = "COSMOS_EVAL_KEY"\nwire_api = "responses"\nrequest_max_retries = 1\nstream_max_retries = 1\nstream_idle_timeout_ms = 90000\n');
+  if(actualHost==='codex')await fs.writeFile(path.join(configRoot,'config.toml'),'model = "gpt-6-luna"\nmodel_provider = "evaluation"\nmodel_reasoning_effort = "xhigh"\nweb_search = "disabled"\n[features]\nmulti_agent = false\n[model_providers.evaluation]\nname = "Configured evaluation gateway"\nbase_url = "https://4router.net/v1"\nenv_key = "COSMOS_EVAL_KEY"\nwire_api = "responses"\nrequest_max_retries = 1\nstream_max_retries = 1\nstream_idle_timeout_ms = 90000\n');
   // Keep host labels in metrics rather than user-supplied business titles.
   // Each job has its own real vault; run/sample IDs provide sufficient uniqueness.
-  const sample={index,name:(kind==='task'?'补交驾校费用':kind==='travel'?'雨后山城一日游记':'业务流程')+'-'+process.env.GITHUB_RUN_ID+'-'+index,turns:[],issues:[],passed:false};report.samples.push(sample);await save();
+  const sample={index,name:(isSkillSuite?kind:kind==='task'?'补交驾校费用':kind==='travel'?'雨后山城一日游记':'业务流程')+'-'+process.env.GITHUB_RUN_ID+'-'+index,host:actualHost,activation:actualActivation,...(isSkillSuite?{skill:kind}:{}),turns:[],issues:[],diagnostics:[],passed:false};report.samples.push(sample);await save();
   async function turn(prompt,phase,fault={}){
-    const injected=phase==='plan'&&activation==='injected',row={phase,prompt,startedAt:new Date().toISOString(),tools:[],responses:[],injected};sample.turns.push(row);await save();console.log(JSON.stringify({host,kind,activation,index,phase,state:'started'}));
+    const injected=phase==='plan'&&actualActivation==='injected',row={phase,prompt,startedAt:new Date().toISOString(),tools:[],responses:[],injected,host:actualHost};sample.turns.push(row);await save();console.log(JSON.stringify({host:actualHost,kind,activation:actualActivation,index,phase,state:'started'}));
     const planningPhase=phase==='plan'||phase.endsWith('-plan');
     row.controllerTimeoutMs=planningPhase?240000:180000;
     const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),row.controllerTimeoutMs),started=performance.now();
     let receiptWatcher,watching=false;
     if(fault.interruptReviewId)receiptWatcher=setInterval(async()=>{if(watching||controller.signal.aborted)return;watching=true;try{const review=JSON.parse(await fs.readFile(path.join(stateRoot,'reviews',fault.interruptReviewId+'.json'),'utf8'));if(review.executionId){const receipt=JSON.parse(await fs.readFile(path.join(stateRoot,'receipts',review.executionId+'.json'),'utf8'));if(receipt.state==='succeeded'&&receipt.result?.state==='succeeded'){row.interruption={kind:'controller aborted official host after actual terminal native receipt',executionId:review.executionId};controller.abort();}}}catch{}finally{watching=false;}},25);
-    const input=injected&&host==='claude'?'/'+selected+' '+prompt:prompt;
+    const input=injected&&actualHost==='claude'?'/'+selected+' '+prompt:prompt;
     try{
-      if(host==='codex'){
+      if(actualHost==='codex'){
         session=await codexTurn({env,workspace,context,session,prompt:input,skill:injected?{name:selected,path:skillPath}:undefined,signal:controller.signal,row,onSession:id=>session=id});
       }else {
         const {query}=await import('./node_modules/@anthropic-ai/claude-agent-sdk/sdk.mjs');
@@ -56,19 +59,22 @@ async function prepareSample(index){
         }
       }
     }catch(error){row.error=error.message;if(!row.interruption)throw error;}
-    finally{clearTimeout(timeout);clearInterval(receiptWatcher);row.completedAt=new Date().toISOString();row.milliseconds=performance.now()-started;row.sessionId=session;if(host==='codex'&&session)row.responses=await codexResponses(configRoot,session,row.startedAt,row.completedAt);row.commands=await commandMetrics(stateRoot,row.startedAt,row.completedAt);row.activity=activity(row.tools,injected);await save();console.log(JSON.stringify({host,kind,activation,index,phase,milliseconds:Math.round(row.milliseconds),responses:row.responses.length,commands:row.commands.map(c=>c.command),state:row.interruption?'interrupted':row.error?'failed':'completed'}));}
+    finally{clearTimeout(timeout);clearInterval(receiptWatcher);row.completedAt=new Date().toISOString();row.milliseconds=performance.now()-started;row.sessionId=session;if(actualHost==='codex'&&session)row.responses=await codexResponses(configRoot,session,row.startedAt,row.completedAt);row.commands=await commandMetrics(stateRoot,row.startedAt,row.completedAt);row.activity=activity(row.tools,injected);await save();console.log(JSON.stringify({host:actualHost,kind,activation:actualActivation,index,phase,milliseconds:Math.round(row.milliseconds),responses:row.responses.length,commands:row.commands.map(c=>c.command),state:row.interruption?'interrupted':row.error?'failed':'completed'}));}
     assert.ok(session,'Native persisted session ID missing');if(!row.interruption)assert.ok(row.answer?.trim(),'No user-facing result');if(phase==='plan')assert.deepEqual([...new Set(row.discoveredSkills??[])].sort(),[...manifest.skills].sort(),'Official host did not discover all ten skills');if(fault.interruptReviewId)assert.ok(row.interruption,'Official host was not interrupted after the native receipt');
-    if(kind!=='workflows')sample.issues.push(...performanceIssues(row,kind,injected,phase));
-    else {if(!row.responses.length)sample.issues.push('Native response IDs were not measured');if(row.activity.extraExploration.length)sample.issues.push('Unrelated exploration or repeated skill loading in '+phase);}
+    if(!row.responses.length)sample.issues.push('Native response IDs were not measured');
+    if(isSkillSuite||kind==='workflows'){if(row.activity.extraExploration.length)sample.diagnostics.push({phase,observation:'Additional exploration or skill loading',activity:row.activity});}
+    else sample.diagnostics.push(...performanceIssues(row,kind,injected,phase).map(observation=>({phase,observation})));
     return row;
   }
   return {sample,turn,stateRoot,staged,binding:{...binding,stateRoot},configPath:config,processRun};
 }
 try{
-  assert.ok(['codex','claude'].includes(host));assert.ok(['task','travel','workflows'].includes(kind));assert.ok(['implicit','injected'].includes(activation));assert.ok(process.env.EVALUATION_TOKEN,'Required evaluation credential missing');assert.equal(manifest.sourceSha,process.env.GITHUB_SHA);assert.equal(manifest.runId,process.env.GITHUB_RUN_ID);
+  assert.ok(['codex','claude','mixed'].includes(host));assert.ok(isSkillSuite||['task','travel','workflows'].includes(kind));assert.ok(['implicit','injected','mixed'].includes(activation));assert.ok(process.env.EVALUATION_TOKEN,'Required evaluation credential missing');assert.equal(manifest.sourceSha,process.env.GITHUB_SHA);assert.equal(manifest.runId,process.env.GITHUB_RUN_ID);
+  if(kind==='cosmos-amytis')await setupSkillPublication(binding,processRun);
   for(let index=1;index<=count;index++){
     const c=await prepareSample(index),before=await snapshot();
     try{
+      if(isSkillSuite){await skillSuite(c,{snapshot,markdownFiles,save});c.sample.passed=c.sample.issues.length===0;await save();continue;}
       if(kind==='workflows'){await workflowCases(c,{snapshot,markdownFiles,save});c.sample.passed=c.sample.issues.length===0;await save();continue;}
       const planned=await c.turn(kind==='task'?taskPrompt(c.sample.name):travelPrompt(c.sample.name),'plan');assert.equal(await snapshot(),before,'Business Markdown changed before approval');
       const reviews=(await fs.readdir(path.join(c.stateRoot,'reviews'))).filter(name=>name.endsWith('.json'));assert.equal(reviews.length,1,'Expected one actual immutable review');const review=JSON.parse(await fs.readFile(path.join(c.stateRoot,'reviews',reviews[0]),'utf8'));assert.equal(review.state,'review-ready');assert.equal(review.plan.steps.length,1);const step=review.plan.steps[0];assert.equal(step.action,kind==='task'?'task.create':'entity.create');
@@ -82,6 +88,6 @@ try{
     }catch(error){c.sample.issues.push(error.message);c.sample.passed=false;}
     await save();
   }
-  const required=kind==='workflows'||profile==='smoke'?1:3;report.passed=count===required&&report.samples.length===required&&report.samples.every(sample=>sample.passed);report.summary={samples:report.samples.length,passed:report.samples.filter(sample=>sample.passed).length,phaseMaximumMs:Object.fromEntries(['plan','commit'].map(phase=>[phase,Math.max(0,...report.samples.flatMap(sample=>sample.turns.filter(turn=>turn.phase===phase).map(turn=>turn.milliseconds)))]))};
+  const required=isSkillSuite?3:kind==='workflows'||profile==='smoke'?1:3;report.passed=count===required&&report.samples.length===required&&report.samples.every(sample=>sample.passed);report.summary={samples:report.samples.length,passed:report.samples.filter(sample=>sample.passed).length,phaseMaximumMs:Object.fromEntries(['plan','commit'].map(phase=>[phase,Math.max(0,...report.samples.flatMap(sample=>sample.turns.filter(turn=>turn.phase===phase).map(turn=>turn.milliseconds)))]))};
 }catch(error){report.error={message:error.message};}
 await save();if(!report.passed)process.exitCode=1;console.log(redacted({passed:report.passed,summary:report.summary,error:report.error,issues:report.samples.flatMap(sample=>sample.issues)}));

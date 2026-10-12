@@ -11,7 +11,7 @@ export function qualityIssues(kind,body){
     const itineraryFacts=[
       ['08:00 bridge arrival',/(?:0?8|八)\s*(?:[:：]00|点|时)/],
       ['09:00 market walk',/(?:0?9|九)\s*(?:[:：]00|点|时)/],
-      ['14:00 bus return',/(?:(?:14|十四)\s*(?:[:：]00|点|时)|下午\s*(?:2|两|二)\s*(?:[:：]00|点|时))/],
+      ['14:00 bus return',/(?:(?:14|十四)\s*(?:[:：]00|点|时)|(?:下午|午后)[^\n]{0,40}?(?:2|两|二)\s*(?:[:：]00|点|时))/],
       ['half-hour stop',/半(?:个)?小时|(?:30|三十)\s*分钟/],
       ['two-kilometre river walk',/(?:2|两|二)\s*(?:公里|千米)|2\s*km/i],
       ['market destination',/市场/],

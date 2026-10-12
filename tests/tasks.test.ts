@@ -5,7 +5,7 @@ import os from 'node:os';
 import { normalizeTask, normalizeTaskChange, tags } from '../src/domain/tasks.js';
 import { schedule } from '../src/domain/dates.js';
 import { Store, type Review } from '../src/state/store.js';
-import { Reviews, planSummary } from '../src/workflows/review.js';
+import { Reviews, planSummary, previewLocation } from '../src/workflows/review.js';
 import { CosmosError } from '../src/errors.js';
 import type { Plan } from '../src/workflows/types.js';
 const catalog = { statuses: () => [{value:'open',label:'未开始',isCompleted:false},{value:'done',label:'完成',isCompleted:true}], priorities: () => [{value:'low',label:'低',weight:1},{value:'high',label:'高',weight:4}] };
@@ -38,6 +38,11 @@ describe('task business contract', () => {
   });
 });
 describe('review execution state', () => {
+  it('returns a usable link to the actual preview path including Windows separators and spaces',()=>{
+    const location=previewLocation('C:\\A Vault\\state\\previews\\r-original.md');
+    expect(location.path).toBe('C:\\A Vault\\state\\previews\\r-original.md');
+    expect(location.link).toBe('[查看完整预览](<C:/A Vault/state/previews/r-original.md>)');
+  });
   it('shows the actual pinned properties and short body, with a bounded outline for long content',()=>{
     const plan:Plan={version:1,bindingId:'bound',steps:[{action:'task.create',path:'task.md',data:{privateTransport:'excluded'},expected:{properties:{scheduled:'2026-10-13T10:30',priority:'high'},body:'# 任务\n\n核对金额后保留收据。'}},{action:'entity.create',path:'trip.md',data:{},expected:{body:'# 游记\n\n## 现场\n\n'+'山路与雨水。'.repeat(600)}}],dependencies:[],environment:{},warnings:[]};
     const summary=planSummary(plan);

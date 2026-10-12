@@ -10,4 +10,4 @@ compatibility: Node 24、已绑定的 Obsidian CLI；纯咨询可以直接回答
 
 长正文用 `draft open`，指定名称与已登记 category/entity，按返回 `contentContract.fields` 写 `{"fields":{"id":"完整 Markdown"}}`，随后 `draft preview --draft <draftId> --input <正文 JSON>`。多个文件用一次 `change preview`；仅必要格式查询用 `help <命令>`，类型不清时用 `query model`。不串读十个技能或整套模板。
 
-展示最小文件组合、实际属性与关系、正文要点和 `preview.path` 全文链接。用户审阅批准后一次 `review commit --review <reviewId> --confirm`，自动执行与复检。已有批准在中断后仍沿用；取消用 `review cancel`，未知结果用原 execution ID 查询，避免重复写入。
+展示最小文件组合、实际属性与关系、正文要点和 `preview.link` 实际全文链接。用户审阅批准后一次 `review commit --review <reviewId> --confirm`，自动执行与复检。已有批准在中断后仍沿用；取消用 `review cancel`，未知结果用原 execution ID 查询，避免重复写入。
