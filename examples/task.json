@@ -1,0 +1,6 @@
+{
+  "title": "核对项目验收清单",
+  "schedule": {"relativeDays": 1, "time": "10:30", "timeZone": "Asia/Shanghai"},
+  "estimateMinutes": 45,
+  "details": "逐项核对交付材料，记录尚未完成的事项，并保存验收结果。"
+}

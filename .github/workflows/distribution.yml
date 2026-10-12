@@ -1,0 +1,107 @@
+name: Production distribution
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    name: Verify (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.21.0'
+      - name: Verify accepted runtime bytes, examples, and user documentation
+        run: node scripts/verify-release.mjs
+      - name: Check JavaScript syntax
+        run: |
+          node --check runtime/cosmos.mjs
+          node --check runtime/cosmos-runtime.cjs
+          node --check runtime/install.mjs
+          node --check scripts/verify-release.mjs
+      - name: Exercise the CLI, installer, and all ten skill entries without a vault
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $manifest = Get-Content -LiteralPath runtime/manifest.json -Raw | ConvertFrom-Json
+          $entries = @('runtime/cosmos.mjs', 'runtime/install.mjs')
+          $entries += @($manifest.skills | ForEach-Object { 'runtime/skills/' + $_ + '/scripts/cosmos.mjs' })
+          foreach ($entry in $entries) {
+            $output = & node $entry help
+            if ($LASTEXITCODE -ne 0) { throw ('Entry failed: ' + $entry) }
+            $result = ($output -join "`n") | ConvertFrom-Json
+            if (!$result.ok -or !$result.commands.Count) { throw ('Invalid command help: ' + $entry) }
+          }
+          Write-Output ('Verified ' + $entries.Count + ' independent production entries.')
+  package:
+    name: Package release archives
+    needs: verify
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.21.0'
+      - name: Select the distribution version
+        id: version
+        run: |
+          version=$(node -p 'JSON.parse(require("fs").readFileSync("release.json","utf8")).version')
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "name=cosmos-obsidian-v$version" >> "$GITHUB_OUTPUT"
+      - name: Create production-only ZIP and tar.gz
+        env:
+          ARCHIVE_NAME: ${{ steps.version.outputs.name }}
+        run: |
+          mkdir -p artifacts "$RUNNER_TEMP/$ARCHIVE_NAME"
+          cp -R runtime docs examples scripts README.md CHANGELOG.md LICENSE release.json "$RUNNER_TEMP/$ARCHIVE_NAME/"
+          cd "$RUNNER_TEMP"
+          tar --owner=0 --group=0 --numeric-owner -czf "$GITHUB_WORKSPACE/artifacts/$ARCHIVE_NAME.tar.gz" "$ARCHIVE_NAME"
+          zip -qr "$GITHUB_WORKSPACE/artifacts/$ARCHIVE_NAME.zip" "$ARCHIVE_NAME"
+      - name: Verify both extracted archives
+        env:
+          ARCHIVE_NAME: ${{ steps.version.outputs.name }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/zip-check" "$RUNNER_TEMP/tar-check"
+          unzip -q "artifacts/$ARCHIVE_NAME.zip" -d "$RUNNER_TEMP/zip-check"
+          tar -xzf "artifacts/$ARCHIVE_NAME.tar.gz" -C "$RUNNER_TEMP/tar-check"
+          node "$RUNNER_TEMP/zip-check/$ARCHIVE_NAME/scripts/verify-release.mjs"
+          node "$RUNNER_TEMP/tar-check/$ARCHIVE_NAME/scripts/verify-release.mjs"
+      - name: Record archive provenance and SHA256 sums
+        env:
+          ARCHIVE_NAME: ${{ steps.version.outputs.name }}
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs/promises';
+          import {createHash} from 'node:crypto';
+          const metadata=JSON.parse(await fs.readFile('release.json','utf8'));
+          const assets=[];
+          for(const extension of ['zip','tar.gz']) {
+            const name=process.env.ARCHIVE_NAME+'.'+extension,bytes=await fs.readFile('artifacts/'+name);
+            assets.push({name,size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')});
+          }
+          const provenance={format:1,version:metadata.version,repository:process.env.GITHUB_REPOSITORY,distributionCommit:process.env.GITHUB_SHA,packagingRun:process.env.GITHUB_RUN_ID,packagingAttempt:process.env.GITHUB_RUN_ATTEMPT,packagingUrl:'https://github.com/'+process.env.GITHUB_REPOSITORY+'/actions/runs/'+process.env.GITHUB_RUN_ID,runtime:metadata.runtime,acceptance:metadata.acceptance,assets};
+          await fs.writeFile('artifacts/release-provenance.json',JSON.stringify(provenance,null,2)+'\n');
+          JS
+          cd artifacts
+          sha256sum "$ARCHIVE_NAME.zip" "$ARCHIVE_NAME.tar.gz" release-provenance.json > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.name }}
+          path: artifacts/
+          if-no-files-found: error

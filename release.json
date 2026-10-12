@@ -1,0 +1,23 @@
+{
+  "format": 1,
+  "name": "cosmos-obsidian",
+  "version": "0.1.0",
+  "license": "MIT",
+  "distribution": "prebuilt",
+  "nodeMajor": 24,
+  "runtime": {
+    "sourceSha": "d7ca68a26eb0d13fb253a891873c56b23420659d",
+    "runId": "38229786099",
+    "attempt": "1",
+    "manifestSha256": "8e48ce71fea82852f791cee09919a4ebccb4fc3c4cc3b481e1cecbe5573e89d7"
+  },
+  "acceptance": {
+    "candidateRun": "https://github.com/Self-Command/cosmos-obsidian/actions/runs/38229786099",
+    "decisionRun": "https://github.com/Self-Command/cosmos-obsidian/actions/runs/38232747805",
+    "functionalPlatforms": ["windows", "linux"],
+    "checksPerFunctionalPlatform": 96,
+    "skillScenarios": 30,
+    "nativeHostPlatform": "windows",
+    "nativeChecks": {"tasks": 9, "entities": 4, "business": 36, "publication": 23}
+  }
+}

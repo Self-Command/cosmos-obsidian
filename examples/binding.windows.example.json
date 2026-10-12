@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "vaultPath": "C:/Knowledge/Cosmos",
+  "vaultName": "Cosmos",
+  "cliPath": "C:/Apps/Obsidian/Obsidian.com",
+  "stateRoot": "C:/CosmosData/state",
+  "schemaPath": "宇宙/演化/规则/系统规则.json",
+  "templateFolder": "宇宙/创世/模板",
+  "timeoutMs": 15000
+}
