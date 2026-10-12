@@ -22,8 +22,8 @@ export async function codexTurn({env,workspace,context,session,prompt,skill,sign
   const abort=()=>{row.abortRequested=true;if(turnId)rpc('turn/interrupt',{threadId:session,turnId}).catch(()=>child.kill());else child.kill();};signal.addEventListener('abort',abort,{once:true});
   try{
     await rpc('initialize',{clientInfo:{name:'cosmos_acceptance',title:'Independent synthetic acceptance',version:'0.1.0'}});child.stdin.write(JSON.stringify({method:'initialized',params:{}})+'\n');
-    const list=await rpc('skills/list',{cwds:[workspace],forceReload:true});row.discoveredSkills=(list.data??[]).flatMap(d=>d.skills??[]).map(s=>s.name).filter(s=>s.startsWith('cosmos-'));
-    const params={model:'gpt-6-luna',modelProvider:'evaluation',cwd:workspace,approvalPolicy:'never',sandbox:'dangerFullAccess',config:{model_reasoning_effort:'xhigh',web_search:'disabled',features:{multi_agent:false}},developerInstructions:context};
+    const list=await rpc('skills/list',{cwds:[workspace],forceReload:true});row.skillInventory=list;row.discoveredSkills=(list.data??[]).flatMap(d=>d.skills??[]).map(s=>s.name).filter(s=>s.startsWith('cosmos-'));
+    const params={model:'gpt-6-luna',modelProvider:'evaluation',cwd:workspace,approvalPolicy:'never',sandbox:'danger-full-access',config:{model_reasoning_effort:'xhigh',web_search:'disabled',features:{multi_agent:false}},developerInstructions:context};
     const started=await rpc(session?'thread/resume':'thread/start',session?{...params,threadId:session}:params);session=started.thread.id;onSession(session);row.observedModel=started.model??started.thread.model;row.instructionSources=started.instructionSources;
     const input=[{type:'text',text:skill?'$'+skill.name+' '+prompt:prompt}];if(skill)input.push({type:'skill',name:skill.name,path:skill.path});
     const turn=await rpc('turn/start',{threadId:session,input,model:'gpt-6-luna',effort:'xhigh'});turnId=turn.turn.id;if(signal.aborted)abort();
